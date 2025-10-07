@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, ArrowUpDown } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,50 +10,66 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { Token } from "@/hooks/usePortfolioBalances";
 
-interface Token {
-  id: string;
-  name: string;
-  symbol: string;
-  logo: string;
-  chain: string;
-  balance: string;
-  balanceUSD: string;
+interface TokenTableProps {
+  tokens: Token[];
 }
 
-const mockTokens: Token[] = [
-  {
-    id: "1",
-    name: "Ethereum",
-    symbol: "ETH",
-    logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
-    chain: "Ethereum",
-    balance: "5.2534",
-    balanceUSD: "$10,234.50",
-  },
-  {
-    id: "2",
-    name: "USD Coin",
-    symbol: "USDC",
-    logo: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png",
-    chain: "Ethereum",
-    balance: "15,000",
-    balanceUSD: "$15,000.00",
-  },
-];
+type SortField = "symbol" | "balance" | "balanceUSD";
+type SortDirection = "asc" | "desc";
 
-export const TokenTable = () => {
+export const TokenTable = ({ tokens }: TokenTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortField, setSortField] = useState<"balance" | "balanceUSD" | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [sortField, setSortField] = useState<SortField>("balanceUSD");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  const handleSort = (field: "balance" | "balanceUSD") => {
+  const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
       setSortDirection("desc");
     }
+  };
+
+  const filteredAndSortedTokens = useMemo(() => {
+    let result = [...tokens];
+
+    // Filter by search query
+    if (searchQuery) {
+      result = result.filter(
+        (token) =>
+          token.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          token.network.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let aValue = a[sortField];
+      let bValue = b[sortField];
+
+      if (typeof aValue === "string") aValue = aValue.toLowerCase();
+      if (typeof bValue === "string") bValue = bValue.toLowerCase();
+
+      if (sortDirection === "asc") {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    return result;
+  }, [tokens, searchQuery, sortField, sortDirection]);
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4" />;
+    return sortDirection === "asc" ? (
+      <ArrowUp className="ml-2 h-4 w-4" />
+    ) : (
+      <ArrowDown className="ml-2 h-4 w-4" />
+    );
   };
 
   return (
@@ -65,25 +81,35 @@ export const TokenTable = () => {
             placeholder="Search tokens..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 glass border-border/40"
+            className="pl-10"
           />
         </div>
       </div>
 
-      <div className="rounded-lg border border-border/40 glass overflow-hidden">
+      <div className="rounded-lg border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent border-border/40">
-              <TableHead>Token</TableHead>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleSort("symbol")}
+                  className="hover:bg-transparent font-medium"
+                >
+                  Token
+                  <SortIcon field="symbol" />
+                </Button>
+              </TableHead>
               <TableHead>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleSort("balance")}
-                  className="hover:bg-transparent"
+                  className="hover:bg-transparent font-medium"
                 >
                   Balance
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                  <SortIcon field="balance" />
                 </Button>
               </TableHead>
               <TableHead>
@@ -91,31 +117,43 @@ export const TokenTable = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => handleSort("balanceUSD")}
-                  className="hover:bg-transparent"
+                  className="hover:bg-transparent font-medium"
                 >
-                  Holdings Value (USD)
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                  Value (USD)
+                  <SortIcon field="balanceUSD" />
                 </Button>
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockTokens.map((token) => (
-              <TableRow key={token.id} className="border-border/40 hover:bg-white/5">
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <img src={token.logo} alt={token.name} className="h-8 w-8 rounded-full" />
-                    <div>
-                      <p className="font-medium">{token.symbol}</p>
-                      <p className="text-xs text-muted-foreground">{token.name}</p>
-                      <p className="text-xs text-muted-foreground">{token.chain}</p>
-                    </div>
-                  </div>
+            {filteredAndSortedTokens.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                  No tokens found
                 </TableCell>
-                <TableCell className="font-mono">{token.balance}</TableCell>
-                <TableCell className="font-semibold">{token.balanceUSD}</TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredAndSortedTokens.map((token, index) => (
+                <TableRow key={`${token.address}-${index}`} className="hover:bg-muted/50">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="font-medium">{token.symbol}</p>
+                        <p className="text-xs text-muted-foreground">{token.network}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono">
+                    {token.balance.toLocaleString(undefined, {
+                      maximumFractionDigits: 6,
+                    })}
+                  </TableCell>
+                  <TableCell className="font-semibold">
+                    ${token.balanceUSD.toFixed(2)}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

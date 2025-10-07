@@ -11,7 +11,7 @@ interface StatCardProps {
 
 export const StatCard = ({ title, value, change, icon: Icon, trend }: StatCardProps) => {
   return (
-    <Card className="gradient-card border-border/40 p-6 transition-smooth hover:border-primary/40">
+    <Card className="p-6 transition-smooth hover:border-primary/20">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-muted-foreground">{title}</p>
@@ -26,8 +26,8 @@ export const StatCard = ({ title, value, change, icon: Icon, trend }: StatCardPr
             </p>
           )}
         </div>
-        <div className="rounded-lg bg-primary/10 p-3">
-          <Icon className="h-6 w-6 text-primary" />
+        <div className="rounded-lg bg-muted p-3">
+          <Icon className="h-6 w-6 text-foreground" />
         </div>
       </div>
     </Card>
