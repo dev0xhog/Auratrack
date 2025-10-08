@@ -1,24 +1,23 @@
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, Shield, Zap, ExternalLink } from "lucide-react";
-import { WalletInput } from "@/components/WalletInput";
 import { usePortfolioStrategies } from "@/hooks/usePortfolioStrategies";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSearchParams } from "react-router-dom";
 
 const Strategies = () => {
-  const [walletAddress, setWalletAddress] = useState<string>();
+  const [searchParams] = useSearchParams();
+  const walletAddress = searchParams.get("address") || undefined;
   const { data, isLoading, error } = usePortfolioStrategies(walletAddress);
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       <div>
         <h1 className="text-4xl font-bold mb-2">AI Strategies</h1>
-        <p className="text-muted-foreground mb-6">
+        <p className="text-muted-foreground">
           Personalized DeFi strategies based on your portfolio
         </p>
-        <WalletInput onAddressSubmit={setWalletAddress} currentAddress={walletAddress} />
       </div>
 
       {!walletAddress ? (

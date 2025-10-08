@@ -1,15 +1,15 @@
-import { useState } from "react";
-import { Wallet, TrendingUp, Clock, DollarSign } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/portfolio/StatCard";
 import { TokenTable } from "@/components/portfolio/TokenTable";
 import { PortfolioChart } from "@/components/portfolio/PortfolioChart";
-import { WalletInput } from "@/components/WalletInput";
+import { Wallet, TrendingUp, PieChart, DollarSign } from "lucide-react";
 import { usePortfolioBalances } from "@/hooks/usePortfolioBalances";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSearchParams } from "react-router-dom";
 
 const Portfolio = () => {
-  const [walletAddress, setWalletAddress] = useState<string>();
+  const [searchParams] = useSearchParams();
+  const walletAddress = searchParams.get("address") || undefined;
   const { data, isLoading, error } = usePortfolioBalances(walletAddress);
 
   // Calculate total portfolio value
@@ -30,13 +30,11 @@ const Portfolio = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
-      {/* Header */}
       <div>
-        <h1 className="text-4xl font-bold mb-2">Portfolio</h1>
-        <p className="text-muted-foreground mb-6">
-          Track your crypto assets across multiple chains
+        <h1 className="text-4xl font-bold mb-2">Portfolio Overview</h1>
+        <p className="text-muted-foreground">
+          Track your crypto holdings across multiple chains
         </p>
-        <WalletInput onAddressSubmit={setWalletAddress} currentAddress={walletAddress} />
       </div>
 
       {!walletAddress ? (
