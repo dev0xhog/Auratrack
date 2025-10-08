@@ -3,12 +3,23 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useNFTs } from "@/hooks/useNFTs";
+import { useMoralisNFTs } from "@/hooks/useMoralisNFTs";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const NFTs = () => {
   const [searchParams] = useSearchParams();
   const walletAddress = searchParams.get("address") || undefined;
-  const { data: nfts, isLoading, error } = useNFTs(walletAddress);
+  
+  // Try Alchemy first (Ethereum only)
+  const { data: alchemyNfts, isLoading: alchemyLoading, error: alchemyError } = useNFTs(walletAddress);
+  
+  // Moralis for multi-chain (when API key is available)
+  const { data: moralisNfts, isLoading: moralisLoading } = useMoralisNFTs(walletAddress);
+  
+  // Use Alchemy data if available, otherwise Moralis
+  const nfts = alchemyNfts && alchemyNfts.length > 0 ? alchemyNfts : [];
+  const isLoading = alchemyLoading || moralisLoading;
+  const error = alchemyError;
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       <div>
@@ -34,7 +45,20 @@ const NFTs = () => {
         </div>
       ) : error ? (
         <Card className="p-12 text-center border-destructive">
-          <p className="text-destructive">Failed to load NFTs. Please add your Alchemy API key.</p>
+          <p className="text-destructive mb-4">
+            Failed to load NFTs. Ethereum NFTs require an Alchemy API key.
+          </p>
+          <p className="text-muted-foreground text-sm">
+            For multi-chain NFT support, add a Moralis API key at{" "}
+            <a
+              href="https://moralis.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              moralis.io
+            </a>
+          </p>
         </Card>
       ) : !nfts || nfts.length === 0 ? (
         <Card className="p-12 text-center">

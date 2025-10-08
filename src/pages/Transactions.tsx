@@ -5,13 +5,25 @@ import { Badge } from "@/components/ui/badge";
 import { Search, ArrowUpRight, ExternalLink } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useMoralisTransactions } from "@/hooks/useMoralisTransactions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatNumber } from "@/lib/formatters";
 
 const Transactions = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchParams] = useSearchParams();
   const walletAddress = searchParams.get("address") || undefined;
-  const { data: transactions, isLoading, error } = useTransactions(walletAddress);
+  
+  // Try Etherscan first (Ethereum only)
+  const { data: etherscanTxs, isLoading: etherscanLoading, error: etherscanError } = useTransactions(walletAddress);
+  
+  // Moralis for multi-chain (when API key is available)
+  const { data: moralisTxs, isLoading: moralisLoading } = useMoralisTransactions(walletAddress);
+  
+  // Use Etherscan data if available, otherwise Moralis
+  const transactions = etherscanTxs && etherscanTxs.length > 0 ? etherscanTxs : [];
+  const isLoading = etherscanLoading || moralisLoading;
+  const error = etherscanError;
 
   const formatDate = (timestamp: string) => {
     const date = new Date(parseInt(timestamp) * 1000);
@@ -20,7 +32,7 @@ const Transactions = () => {
 
   const formatValue = (value: string) => {
     const eth = parseFloat(value) / 1e18;
-    return eth.toFixed(6);
+    return formatNumber(eth, 6);
   };
 
   const filteredTransactions = transactions?.filter((tx) =>
@@ -60,7 +72,20 @@ const Transactions = () => {
         </div>
       ) : error ? (
         <Card className="p-12 text-center border-destructive">
-          <p className="text-destructive">Failed to load transactions. Please try again.</p>
+          <p className="text-destructive mb-4">
+            Failed to load transactions. Ethereum transactions require an Etherscan API key.
+          </p>
+          <p className="text-muted-foreground text-sm">
+            For multi-chain transaction support, add a Moralis API key at{" "}
+            <a
+              href="https://moralis.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              moralis.io
+            </a>
+          </p>
         </Card>
       ) : !filteredTransactions || filteredTransactions.length === 0 ? (
         <Card className="p-12 text-center">

@@ -6,11 +6,15 @@ import { Wallet, TrendingUp, PieChart, DollarSign } from "lucide-react";
 import { usePortfolioBalances } from "@/hooks/usePortfolioBalances";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams } from "react-router-dom";
+import { formatUSD } from "@/lib/formatters";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 const Portfolio = () => {
   const [searchParams] = useSearchParams();
   const walletAddress = searchParams.get("address") || undefined;
   const { data, isLoading, error } = usePortfolioBalances(walletAddress);
+  const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
 
   // Calculate total portfolio value
   const totalValue = data?.portfolio.reduce(
@@ -21,12 +25,17 @@ const Portfolio = () => {
   // Count total tokens
   const totalAssets = data?.portfolio.reduce((count, item) => count + item.tokens.length, 0) || 0;
 
-  // Get network balances for top section
-  const networkBalances = data?.portfolio.map((item) => ({
+  // Get network balances for top section, sorted by USD value
+  const networkBalances = (data?.portfolio.map((item) => ({
     network: item.network.name,
     balance: item.tokens.reduce((sum, token) => sum + token.balanceUSD, 0),
     icon: item.network.iconUrls[0],
-  })) || [];
+  })) || []).sort((a, b) => b.balance - a.balance);
+
+  // Filter tokens by selected network
+  const filteredTokens = selectedNetwork
+    ? data?.portfolio.find((p) => p.network.name === selectedNetwork)?.tokens || []
+    : data?.portfolio.flatMap((p) => p.tokens) || [];
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -65,18 +74,42 @@ const Portfolio = () => {
         <>
           {/* Network Balances */}
           {networkBalances.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {networkBalances.map((network) => (
-                <Card key={network.network} className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    {network.icon && (
-                      <img src={network.icon} alt={network.network} className="h-5 w-5" />
-                    )}
-                    <p className="text-sm font-medium">{network.network}</p>
-                  </div>
-                  <p className="text-lg font-bold">${network.balance.toFixed(2)}</p>
-                </Card>
-              ))}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Networks</h2>
+                {selectedNetwork && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedNetwork(null)}
+                  >
+                    Clear filter
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {networkBalances.map((network) => (
+                  <Card
+                    key={network.network}
+                    className={`p-4 cursor-pointer transition-smooth hover:border-primary/40 ${
+                      selectedNetwork === network.network ? "border-primary" : ""
+                    }`}
+                    onClick={() =>
+                      setSelectedNetwork(
+                        selectedNetwork === network.network ? null : network.network
+                      )
+                    }
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      {network.icon && (
+                        <img src={network.icon} alt={network.network} className="h-5 w-5" />
+                      )}
+                      <p className="text-sm font-medium">{network.network}</p>
+                    </div>
+                    <p className="text-lg font-bold">{formatUSD(network.balance)}</p>
+                  </Card>
+                ))}
+              </div>
             </div>
           )}
 
@@ -84,7 +117,7 @@ const Portfolio = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <StatCard
               title="Total Portfolio Value"
-              value={`$${totalValue.toFixed(2)}`}
+              value={formatUSD(totalValue)}
               icon={DollarSign}
             />
             <StatCard
@@ -102,10 +135,10 @@ const Portfolio = () => {
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <TokenTable tokens={data?.portfolio.flatMap(p => p.tokens) || []} />
+              <TokenTable tokens={filteredTokens} />
             </div>
             <div className="lg:col-span-1">
-              <PortfolioChart tokens={data?.portfolio.flatMap(p => p.tokens) || []} />
+              <PortfolioChart tokens={filteredTokens} />
             </div>
           </div>
         </>

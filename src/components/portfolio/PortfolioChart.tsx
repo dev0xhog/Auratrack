@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import type { Token } from "@/hooks/usePortfolioBalances";
+import { formatUSD } from "@/lib/formatters";
 
 interface PortfolioChartProps {
   tokens: Token[];
@@ -65,7 +66,7 @@ export const PortfolioChart = ({ tokens }: PortfolioChartProps) => {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number) => `$${value.toFixed(2)}`}
+                    formatter={(value: number) => formatUSD(value)}
                     contentStyle={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
@@ -89,7 +90,7 @@ export const PortfolioChart = ({ tokens }: PortfolioChartProps) => {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground">{percentage}%</span>
-                      <span className="font-semibold">${token.value.toFixed(2)}</span>
+                      <span className="font-semibold">{formatUSD(token.value)}</span>
                     </div>
                   </div>
                 );

@@ -28,14 +28,17 @@ const Landing = () => {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="max-w-2xl w-full space-y-8 text-center">
-        <div className="space-y-4">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
-            Your Go To Portfolio Tracker for EVM
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            powered by AdEX AURA
-          </p>
-        </div>
+      <div className="text-center space-y-6 mb-12">
+        <h1 className="text-7xl md:text-8xl font-bold mb-4" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+          Auratrack
+        </h1>
+        <h2 className="text-4xl md:text-5xl font-bold">
+          Your Go To Portfolio Tracker for EVM
+        </h2>
+        <p className="text-xl text-muted-foreground">
+          powered by AdEX AURA
+        </p>
+      </div>
 
         <div className="space-y-4 pt-8">
           <p className="text-lg font-medium">Connect wallet or Search address</p>

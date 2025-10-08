@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { Token } from "@/hooks/usePortfolioBalances";
+import { formatBalance, formatUSD } from "@/lib/formatters";
 
 interface TokenTableProps {
   tokens: Token[];
@@ -144,12 +145,10 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                     </div>
                   </TableCell>
                   <TableCell className="font-mono">
-                    {token.balance.toLocaleString(undefined, {
-                      maximumFractionDigits: 6,
-                    })}
+                    {formatBalance(token.balance)}
                   </TableCell>
                   <TableCell className="font-semibold">
-                    ${token.balanceUSD.toFixed(2)}
+                    {formatUSD(token.balanceUSD)}
                   </TableCell>
                 </TableRow>
               ))
