@@ -30,13 +30,7 @@ export const useMoralisNFTs = (address: string | undefined, chain: string = "eth
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
       
-      // For now, return empty array since Moralis requires API key
-      // User will need to sign up at https://moralis.io and add their API key
-      console.warn("Moralis API key required. Sign up at https://moralis.io");
-      return [];
-      
-      /* Uncomment when API key is added:
-      const apiKey = import.meta.env.VITE_MORALIS_API_KEY;
+      const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
       const response = await fetch(
         `https://deep-index.moralis.io/api/v2.2/${address}/nft?chain=${chain}&format=decimal`,
         {
@@ -52,7 +46,6 @@ export const useMoralisNFTs = (address: string | undefined, chain: string = "eth
       
       const data: MoralisNFTsResponse = await response.json();
       return data.result;
-      */
     },
     enabled: !!address,
     staleTime: 300000,

@@ -11,19 +11,27 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { Token } from "@/hooks/usePortfolioBalances";
-import { formatBalance, formatUSD } from "@/lib/formatters";
+import { formatBalance, formatUSD, formatPercentage } from "@/lib/formatters";
+import { useTokenPrices } from "@/hooks/useTokenPrices";
 
 interface TokenTableProps {
   tokens: Token[];
 }
 
-type SortField = "symbol" | "balance" | "balanceUSD";
+type SortField = "symbol" | "balance" | "balanceUSD" | "priceChange";
 type SortDirection = "asc" | "desc";
 
 export const TokenTable = ({ tokens }: TokenTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("balanceUSD");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  // Get unique token symbols for price fetching
+  const tokenSymbols = useMemo(
+    () => [...new Set(tokens.map((t) => t.symbol))],
+    [tokens]
+  );
+  const { data: priceData } = useTokenPrices(tokenSymbols);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -48,8 +56,16 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
 
     // Sort
     result.sort((a, b) => {
-      let aValue = a[sortField];
-      let bValue = b[sortField];
+      let aValue: any;
+      let bValue: any;
+
+      if (sortField === "priceChange") {
+        aValue = priceData?.[a.symbol.toUpperCase()]?.price_change_percentage_24h || 0;
+        bValue = priceData?.[b.symbol.toUpperCase()]?.price_change_percentage_24h || 0;
+      } else {
+        aValue = a[sortField];
+        bValue = b[sortField];
+      }
 
       if (typeof aValue === "string") aValue = aValue.toLowerCase();
       if (typeof bValue === "string") bValue = bValue.toLowerCase();
@@ -62,7 +78,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     });
 
     return result;
-  }, [tokens, searchQuery, sortField, sortDirection]);
+  }, [tokens, searchQuery, sortField, sortDirection, priceData]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4" />;
@@ -124,34 +140,68 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                   <SortIcon field="balanceUSD" />
                 </Button>
               </TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleSort("priceChange")}
+                  className="hover:bg-transparent font-medium"
+                >
+                  24h Change
+                  <SortIcon field="priceChange" />
+                </Button>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredAndSortedTokens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                   No tokens found
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAndSortedTokens.map((token, index) => (
-                <TableRow key={`${token.address}-${index}`} className="hover:bg-muted/50">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <p className="font-medium">{token.symbol}</p>
-                        <p className="text-xs text-muted-foreground">{token.network}</p>
+              filteredAndSortedTokens.map((token, index) => {
+                const priceChange = priceData?.[token.symbol.toUpperCase()]?.price_change_percentage_24h;
+                const isPositive = priceChange && priceChange > 0;
+                const isNegative = priceChange && priceChange < 0;
+
+                return (
+                  <TableRow key={`${token.address}-${index}`} className="hover:bg-muted/50">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <p className="font-medium">{token.symbol}</p>
+                          <p className="text-xs text-muted-foreground">{token.network}</p>
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono">
-                    {formatBalance(token.balance)}
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    {formatUSD(token.balanceUSD)}
-                  </TableCell>
-                </TableRow>
-              ))
+                    </TableCell>
+                    <TableCell className="font-mono">
+                      {formatBalance(token.balance)}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      {formatUSD(token.balanceUSD)}
+                    </TableCell>
+                    <TableCell>
+                      {priceChange !== undefined ? (
+                        <span
+                          className={`font-semibold ${
+                            isPositive
+                              ? "text-success"
+                              : isNegative
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {formatPercentage(priceChange)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
