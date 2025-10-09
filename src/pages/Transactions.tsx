@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, ArrowUpRight, ExternalLink } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import { useTransactions } from "@/hooks/useTransactions";
 import { useMoralisTransactions } from "@/hooks/useMoralisTransactions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber } from "@/lib/formatters";
@@ -14,19 +13,13 @@ const Transactions = () => {
   const [searchParams] = useSearchParams();
   const walletAddress = searchParams.get("address") || undefined;
   
-  // Try Etherscan first (Ethereum only)
-  const { data: etherscanTxs, isLoading: etherscanLoading, error: etherscanError } = useTransactions(walletAddress);
+  // Moralis for multi-chain transactions
+  const { data: moralisTxs, isLoading, error } = useMoralisTransactions(walletAddress);
   
-  // Moralis for multi-chain (when API key is available)
-  const { data: moralisTxs, isLoading: moralisLoading } = useMoralisTransactions(walletAddress);
-  
-  // Use Etherscan data if available, otherwise Moralis
-  const transactions = etherscanTxs && etherscanTxs.length > 0 ? etherscanTxs : [];
-  const isLoading = etherscanLoading || moralisLoading;
-  const error = etherscanError;
+  const transactions = moralisTxs || [];
 
   const formatDate = (timestamp: string) => {
-    const date = new Date(parseInt(timestamp) * 1000);
+    const date = new Date(timestamp);
     return date.toLocaleDateString();
   };
 
@@ -37,8 +30,8 @@ const Transactions = () => {
 
   const filteredTransactions = transactions?.filter((tx) =>
     tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tx.to.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tx.from.toLowerCase().includes(searchQuery.toLowerCase())
+    tx.to_address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    tx.from_address.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -73,18 +66,7 @@ const Transactions = () => {
       ) : error ? (
         <Card className="p-12 text-center border-destructive">
           <p className="text-destructive mb-4">
-            Failed to load transactions. Ethereum transactions require an Etherscan API key.
-          </p>
-          <p className="text-muted-foreground text-sm">
-            For multi-chain transaction support, add a Moralis API key at{" "}
-            <a
-              href="https://moralis.io"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              moralis.io
-            </a>
+            Failed to load transactions. Please ensure your Moralis API key is configured.
           </p>
         </Card>
       ) : !filteredTransactions || filteredTransactions.length === 0 ? (
@@ -106,12 +88,12 @@ const Transactions = () => {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant="outline">
-                        {tx.isError === "0" ? "Success" : "Failed"}
+                        {tx.receipt_status === "1" ? "Success" : "Failed"}
                       </Badge>
                       <span className="font-semibold">ETH</span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {formatDate(tx.timeStamp)} • Ethereum
+                      {formatDate(tx.block_timestamp)}
                     </p>
                     <a
                       href={`https://etherscan.io/tx/${tx.hash}`}
@@ -126,7 +108,7 @@ const Transactions = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-xl font-bold">
-                    {tx.from.toLowerCase() === walletAddress?.toLowerCase() ? "-" : "+"}
+                    {tx.from_address.toLowerCase() === walletAddress?.toLowerCase() ? "-" : "+"}
                     {formatValue(tx.value)}
                   </p>
                   <p className="text-sm text-muted-foreground">ETH</p>

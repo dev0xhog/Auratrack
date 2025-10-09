@@ -11,6 +11,8 @@ const Strategies = () => {
   const walletAddress = searchParams.get("address") || undefined;
   const { data, isLoading, error } = usePortfolioStrategies(walletAddress);
 
+  console.log("Strategies Debug:", { walletAddress, data, isLoading, error });
+
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       <div>

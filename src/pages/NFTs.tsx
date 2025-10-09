@@ -2,15 +2,17 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Image, ExternalLink } from "lucide-react";
+import { Image, ExternalLink, Filter } from "lucide-react";
 import { useMoralisNFTsByChain } from "@/hooks/useMoralisNFTsByChain";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams } from "react-router-dom";
 import { formatUSD } from "@/lib/formatters";
+import type { MoralisNFT } from "@/hooks/useMoralisNFTs";
 
 const NFTs = () => {
   const [searchParams] = useSearchParams();
   const walletAddress = searchParams.get("address") || undefined;
+  const [hideSpam, setHideSpam] = useState(true);
   const { data: nftsByChain, isLoading, error } = useMoralisNFTsByChain(walletAddress);
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
 
@@ -20,16 +22,66 @@ const NFTs = () => {
     count: nfts.length,
   }));
 
-  // Filter NFTs by selected network
-  const displayNFTs = selectedNetwork
+  // Helper functions for spam detection
+  const getImageUrl = (nft: MoralisNFT): string | null => {
+    const metadata = typeof nft.normalized_metadata === 'object' 
+      ? nft.normalized_metadata 
+      : nft.metadata && typeof nft.metadata === 'object' 
+      ? nft.metadata 
+      : null;
+
+    if (metadata?.image) {
+      let imageUrl = metadata.image;
+      if (imageUrl.startsWith('ipfs://')) {
+        imageUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+      }
+      return imageUrl;
+    }
+    return null;
+  };
+
+  const isSpamNFT = (nft: MoralisNFT): boolean => {
+    const metadata = typeof nft.normalized_metadata === 'object' 
+      ? nft.normalized_metadata 
+      : nft.metadata && typeof nft.metadata === 'object' 
+      ? nft.metadata 
+      : null;
+
+    // Filter out NFTs with suspicious characteristics
+    const hasImage = getImageUrl(nft) !== null;
+    const hasName = (nft.name || metadata?.name) !== null;
+    const tokenId = nft.token_id || '';
+    
+    // Check for very large token IDs (often spam)
+    const hasLargeTokenId = tokenId.length > 30;
+    
+    // NFTs without images or names are likely spam
+    const missingBasicInfo = !hasImage || !hasName;
+    
+    return hasLargeTokenId || missingBasicInfo;
+  };
+
+  // Filter NFTs by selected network and spam filter
+  const displayNFTs = (selectedNetwork
     ? nftsByChain?.[selectedNetwork] || []
-    : Object.values(nftsByChain || {}).flat();
+    : Object.values(nftsByChain || {}).flat()
+  ).filter(nft => !hideSpam || !isSpamNFT(nft));
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold mb-2">NFT Collection</h1>
-        <p className="text-muted-foreground">Your digital art and collectibles</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">NFT Collection</h1>
+          <p className="text-muted-foreground">Your digital art and collectibles</p>
+        </div>
+        <Button
+          variant={hideSpam ? "default" : "outline"}
+          onClick={() => setHideSpam(!hideSpam)}
+          className="gap-2"
+        >
+          <Filter className="h-4 w-4" />
+          {hideSpam ? "Hide Spam" : "Show All"}
+        </Button>
       </div>
 
       {!walletAddress ? (
@@ -106,7 +158,7 @@ const NFTs = () => {
                 ? (() => { try { return JSON.parse(nft.metadata); } catch { return {}; } })()
                 : nft.metadata || nft.normalized_metadata || {};
               
-              const imageUrl = metadata.image || '';
+              const imageUrl = metadata.image || getImageUrl(nft) || '';
               const name = metadata.name || nft.name || `#${nft.token_id}`;
               const description = metadata.description || '';
 

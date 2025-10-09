@@ -133,6 +133,15 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="hover:bg-transparent font-medium"
+                >
+                  Price
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleSort("balanceUSD")}
                   className="hover:bg-transparent font-medium"
                 >
@@ -156,13 +165,15 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
           <TableBody>
             {filteredAndSortedTokens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                   No tokens found
                 </TableCell>
               </TableRow>
             ) : (
               filteredAndSortedTokens.map((token, index) => {
-                const priceChange = priceData?.[token.symbol.toUpperCase()]?.price_change_percentage_24h;
+                const tokenPrice = priceData?.[token.symbol.toUpperCase()];
+                const priceChange = tokenPrice?.price_change_percentage_24h;
+                const currentPrice = tokenPrice?.current_price;
                 const isPositive = priceChange && priceChange > 0;
                 const isNegative = priceChange && priceChange < 0;
 
@@ -179,6 +190,13 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                     <TableCell className="font-mono">
                       {formatBalance(token.balance)}
                     </TableCell>
+                    <TableCell className="font-medium">
+                      {currentPrice !== undefined ? (
+                        formatUSD(currentPrice)
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-semibold">
                       {formatUSD(token.balanceUSD)}
                     </TableCell>
@@ -187,9 +205,9 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                         <span
                           className={`font-semibold ${
                             isPositive
-                              ? "text-success"
+                              ? "text-green-600 dark:text-green-500"
                               : isNegative
-                              ? "text-destructive"
+                              ? "text-red-600 dark:text-red-500"
                               : "text-muted-foreground"
                           }`}
                         >

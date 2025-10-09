@@ -41,15 +41,23 @@ export const usePortfolioStrategies = (address: string | undefined) => {
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
       
-      const response = await fetch(
-        `https://aura.adex.network/api/portfolio/strategies?address=${address}`
-      );
+      console.log("Fetching strategies for:", address);
+      const url = `https://aura.adex.network/api/portfolio/strategies?address=${address}`;
+      console.log("Strategy URL:", url);
+      
+      const response = await fetch(url);
+      
+      console.log("Strategy response status:", response.status);
       
       if (!response.ok) {
-        throw new Error("Failed to fetch portfolio strategies");
+        const errorText = await response.text();
+        console.error("Strategy API error:", errorText);
+        throw new Error(`Failed to fetch portfolio strategies: ${response.status}`);
       }
       
-      return response.json();
+      const data = await response.json();
+      console.log("Strategy data:", data);
+      return data;
     },
     enabled: !!address,
     staleTime: 300000, // 5 minutes
