@@ -32,18 +32,22 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     
     tokens.forEach(token => {
       // Add the token symbol
-      symbols.add(token.symbol);
+      if (token.symbol) {
+        symbols.add(token.symbol);
+      }
       
       // Also add network native tokens
-      const network = token.network.toLowerCase();
-      if (network.includes('ethereum')) symbols.add('ETH');
-      if (network.includes('polygon')) symbols.add('MATIC');
-      if (network.includes('bsc') || network.includes('binance')) symbols.add('BNB');
-      if (network.includes('avalanche')) symbols.add('AVAX');
-      if (network.includes('fantom')) symbols.add('FTM');
-      if (network.includes('arbitrum')) symbols.add('ARB');
-      if (network.includes('optimism')) symbols.add('OP');
-      if (network.includes('base')) symbols.add('ETH');
+      if (token.network) {
+        const network = token.network.toLowerCase();
+        if (network.includes('ethereum')) symbols.add('ETH');
+        if (network.includes('polygon')) symbols.add('MATIC');
+        if (network.includes('bsc') || network.includes('binance')) symbols.add('BNB');
+        if (network.includes('avalanche')) symbols.add('AVAX');
+        if (network.includes('fantom')) symbols.add('FTM');
+        if (network.includes('arbitrum')) symbols.add('ARB');
+        if (network.includes('optimism')) symbols.add('OP');
+        if (network.includes('base')) symbols.add('ETH');
+      }
     });
     
     return Array.from(symbols);
@@ -53,6 +57,8 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
   
   // Create a mapping for common wrapped tokens
   const getTokenPrice = (symbol: string, network: string) => {
+    if (!symbol) return undefined;
+    
     // Try direct match first
     let price = priceData?.[symbol.toUpperCase()];
     if (price) return price;
@@ -65,7 +71,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     if (symbol === 'WFTM') price = priceData?.['FTM'];
     
     // Try network native token as fallback
-    if (!price) {
+    if (!price && network) {
       const networkLower = network.toLowerCase();
       if (networkLower.includes('ethereum')) price = priceData?.['ETH'];
       if (networkLower.includes('polygon')) price = priceData?.['MATIC'];
