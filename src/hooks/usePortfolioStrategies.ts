@@ -57,7 +57,16 @@ export const usePortfolioStrategies = (address: string | undefined) => {
       
       const data = await response.json();
       console.log("Strategy data:", data);
-      return data;
+      
+      // Normalize the response to ensure it always has the expected structure
+      return {
+        address: data.address || address,
+        portfolio: Array.isArray(data.portfolio) ? data.portfolio : [],
+        strategies: Array.isArray(data.strategies) ? data.strategies : [],
+        llm: data.llm,
+        cached: data.cached || false,
+        version: data.version || "1.0",
+      };
     },
     enabled: !!address,
     staleTime: 300000, // 5 minutes

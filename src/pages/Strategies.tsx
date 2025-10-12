@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Shield, Zap, ExternalLink } from "lucide-react";
+import { TrendingUp, Shield, Zap, ExternalLink, Target } from "lucide-react";
 import { usePortfolioStrategies } from "@/hooks/usePortfolioStrategies";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams } from "react-router-dom";
@@ -31,26 +31,35 @@ const Strategies = () => {
           </p>
         </Card>
       ) : isLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {[...Array(2)].map((_, i) => (
+        <div className="space-y-6">
+          {[...Array(3)].map((_, i) => (
             <Card key={i} className="p-6">
-              <Skeleton className="h-6 w-48 mb-4" />
-              <Skeleton className="h-4 w-full mb-6" />
-              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-32 w-full" />
             </Card>
           ))}
         </div>
       ) : error ? (
         <Card className="p-12 text-center border-destructive">
-          <p className="text-destructive">Failed to load strategies. Please try again.</p>
+          <p className="text-destructive mb-4">
+            Failed to load strategies. The API might be temporarily unavailable.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Error: {error instanceof Error ? error.message : 'Unknown error'}
+          </p>
         </Card>
       ) : !data?.strategies || data.strategies.length === 0 ? (
         <Card className="p-12 text-center">
-          <p className="text-muted-foreground">No strategies available for this wallet.</p>
+          <Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-xl font-semibold mb-2">No Strategies Available</h3>
+          <p className="text-muted-foreground">
+            {data?.portfolio && data.portfolio.length > 0
+              ? "We couldn't generate any optimization strategies for this portfolio at the moment."
+              : "Connect a wallet or search an address to view portfolio strategies."}
+          </p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {data.strategies.map((strategy, index) => (
+          {(data?.strategies ?? []).map((strategy, index) => (
             <Card
               key={index}
               className="p-6 transition-smooth hover:border-primary/40"
@@ -78,7 +87,7 @@ const Strategies = () => {
 
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground">Actions:</h4>
-                {strategy.actions.map((action, actionIndex) => (
+                {(strategy.actions ?? []).map((action, actionIndex) => (
                   <div key={actionIndex} className="rounded-lg bg-secondary p-3">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-semibold">
@@ -96,7 +105,7 @@ const Strategies = () => {
                       </div>
                     )}
                     <div className="flex flex-wrap gap-2">
-                      {action.platforms.map((platform, platformIndex) => (
+                      {(action.platforms ?? []).map((platform, platformIndex) => (
                         <Button
                           key={platformIndex}
                           variant="ghost"

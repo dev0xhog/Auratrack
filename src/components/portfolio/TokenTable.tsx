@@ -26,12 +26,58 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
   const [sortField, setSortField] = useState<SortField>("balanceUSD");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  // Get unique token symbols for price fetching
-  const tokenSymbols = useMemo(
-    () => [...new Set(tokens.map((t) => t.symbol))],
-    [tokens]
-  );
+  // Get unique token symbols for price fetching - map network names to token symbols
+  const tokenSymbols = useMemo(() => {
+    const symbols = new Set<string>();
+    
+    tokens.forEach(token => {
+      // Add the token symbol
+      symbols.add(token.symbol);
+      
+      // Also add network native tokens
+      const network = token.network.toLowerCase();
+      if (network.includes('ethereum')) symbols.add('ETH');
+      if (network.includes('polygon')) symbols.add('MATIC');
+      if (network.includes('bsc') || network.includes('binance')) symbols.add('BNB');
+      if (network.includes('avalanche')) symbols.add('AVAX');
+      if (network.includes('fantom')) symbols.add('FTM');
+      if (network.includes('arbitrum')) symbols.add('ARB');
+      if (network.includes('optimism')) symbols.add('OP');
+      if (network.includes('base')) symbols.add('ETH');
+    });
+    
+    return Array.from(symbols);
+  }, [tokens]);
+
   const { data: priceData } = useTokenPrices(tokenSymbols);
+  
+  // Create a mapping for common wrapped tokens
+  const getTokenPrice = (symbol: string, network: string) => {
+    // Try direct match first
+    let price = priceData?.[symbol.toUpperCase()];
+    if (price) return price;
+    
+    // Try wrapped token variations
+    if (symbol === 'WETH') price = priceData?.['ETH'];
+    if (symbol === 'WMATIC') price = priceData?.['MATIC'];
+    if (symbol === 'WBNB') price = priceData?.['BNB'];
+    if (symbol === 'WAVAX') price = priceData?.['AVAX'];
+    if (symbol === 'WFTM') price = priceData?.['FTM'];
+    
+    // Try network native token as fallback
+    if (!price) {
+      const networkLower = network.toLowerCase();
+      if (networkLower.includes('ethereum')) price = priceData?.['ETH'];
+      if (networkLower.includes('polygon')) price = priceData?.['MATIC'];
+      if (networkLower.includes('bsc')) price = priceData?.['BNB'];
+      if (networkLower.includes('avalanche')) price = priceData?.['AVAX'];
+      if (networkLower.includes('fantom')) price = priceData?.['FTM'];
+      if (networkLower.includes('arbitrum')) price = priceData?.['ARB'];
+      if (networkLower.includes('optimism')) price = priceData?.['OP'];
+    }
+    
+    return price;
+  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -60,8 +106,10 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
       let bValue: any;
 
       if (sortField === "priceChange") {
-        aValue = priceData?.[a.symbol.toUpperCase()]?.price_change_percentage_24h || 0;
-        bValue = priceData?.[b.symbol.toUpperCase()]?.price_change_percentage_24h || 0;
+        const aPriceData = getTokenPrice(a.symbol, a.network);
+        const bPriceData = getTokenPrice(b.symbol, b.network);
+        aValue = aPriceData?.price_change_percentage_24h || 0;
+        bValue = bPriceData?.price_change_percentage_24h || 0;
       } else {
         aValue = a[sortField];
         bValue = b[sortField];
@@ -171,7 +219,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
               </TableRow>
             ) : (
               filteredAndSortedTokens.map((token, index) => {
-                const tokenPrice = priceData?.[token.symbol.toUpperCase()];
+                const tokenPrice = getTokenPrice(token.symbol, token.network);
                 const priceChange = tokenPrice?.price_change_percentage_24h;
                 const currentPrice = tokenPrice?.current_price;
                 const isPositive = priceChange && priceChange > 0;

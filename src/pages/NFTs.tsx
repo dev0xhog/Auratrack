@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,24 @@ const NFTs = () => {
   const { data: nftsByChain, isLoading, error } = useMoralisNFTsByChain(walletAddress);
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
 
+  // Helper function to filter spam before counting
+  const getNonSpamNFTs = (nfts: MoralisNFT[]) => {
+    return nfts.filter(nft => !isSpamNFT(nft));
+  };
+
   // Get network balances for filtering
-  const networkData = Object.entries(nftsByChain || {}).map(([network, nfts]) => ({
-    network,
-    count: nfts.length,
-  }));
+  const networkData = useMemo(() => {
+    const data = Object.entries(nftsByChain || {}).map(([network, nfts]) => {
+      const displayNfts = hideSpam ? getNonSpamNFTs(nfts) : nfts;
+      return {
+        network,
+        count: displayNfts.length,
+      };
+    });
+    
+    // Sort by count (highest to lowest)
+    return data.sort((a, b) => b.count - a.count);
+  }, [nftsByChain, hideSpam]);
 
   // Helper functions for spam detection
   const getImageUrl = (nft: MoralisNFT): string | null => {
@@ -47,18 +60,40 @@ const NFTs = () => {
       ? nft.metadata 
       : null;
 
-    // Filter out NFTs with suspicious characteristics
-    const hasImage = getImageUrl(nft) !== null;
-    const hasName = (nft.name || metadata?.name) !== null;
+    const imageUrl = getImageUrl(nft);
+    const name = nft.name || metadata?.name;
     const tokenId = nft.token_id || '';
     
-    // Check for very large token IDs (often spam)
-    const hasLargeTokenId = tokenId.length > 30;
+    // Multiple spam indicators
+    const checks = [
+      // Very large token IDs (common in spam)
+      tokenId.length > 40,
+      
+      // No image URL
+      !imageUrl,
+      
+      // No name
+      !name,
+      
+      // Generic or suspicious names
+      name && (
+        name.toLowerCase().includes('airdrop') ||
+        name.toLowerCase().includes('claim') ||
+        name.toLowerCase().includes('free') ||
+        name.toLowerCase().includes('reward') ||
+        name.toLowerCase().includes('visit')
+      ),
+      
+      // Invalid or suspicious image URLs
+      imageUrl && (
+        imageUrl.includes('data:application') ||
+        imageUrl.includes('base64')
+      ),
+    ];
     
-    // NFTs without images or names are likely spam
-    const missingBasicInfo = !hasImage || !hasName;
-    
-    return hasLargeTokenId || missingBasicInfo;
+    // Consider spam if multiple indicators are present
+    const spamIndicators = checks.filter(Boolean).length;
+    return spamIndicators >= 2;
   };
 
   // Filter NFTs by selected network and spam filter
