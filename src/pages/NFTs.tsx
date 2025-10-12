@@ -16,25 +16,6 @@ const NFTs = () => {
   const { data: nftsByChain, isLoading, error } = useMoralisNFTsByChain(walletAddress);
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
 
-  // Helper function to filter spam before counting
-  const getNonSpamNFTs = (nfts: MoralisNFT[]) => {
-    return nfts.filter(nft => !isSpamNFT(nft));
-  };
-
-  // Get network balances for filtering
-  const networkData = useMemo(() => {
-    const data = Object.entries(nftsByChain || {}).map(([network, nfts]) => {
-      const displayNfts = hideSpam ? getNonSpamNFTs(nfts) : nfts;
-      return {
-        network,
-        count: displayNfts.length,
-      };
-    });
-    
-    // Sort by count (highest to lowest)
-    return data.sort((a, b) => b.count - a.count);
-  }, [nftsByChain, hideSpam]);
-
   // Helper functions for spam detection
   const getImageUrl = (nft: MoralisNFT): string | null => {
     const metadata = typeof nft.normalized_metadata === 'object' 
@@ -95,6 +76,25 @@ const NFTs = () => {
     const spamIndicators = checks.filter(Boolean).length;
     return spamIndicators >= 2;
   };
+
+  // Helper function to filter spam before counting
+  const getNonSpamNFTs = (nfts: MoralisNFT[]) => {
+    return nfts.filter(nft => !isSpamNFT(nft));
+  };
+
+  // Get network balances for filtering
+  const networkData = useMemo(() => {
+    const data = Object.entries(nftsByChain || {}).map(([network, nfts]) => {
+      const displayNfts = hideSpam ? getNonSpamNFTs(nfts) : nfts;
+      return {
+        network,
+        count: displayNfts.length,
+      };
+    });
+    
+    // Sort by count (highest to lowest)
+    return data.sort((a, b) => b.count - a.count);
+  }, [nftsByChain, hideSpam]);
 
   // Filter NFTs by selected network and spam filter
   const displayNFTs = (selectedNetwork
