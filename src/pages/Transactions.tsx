@@ -9,6 +9,7 @@ import { useMoralisTransactionsByChain } from "@/hooks/useMoralisTransactionsByC
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber, formatUSD } from "@/lib/formatters";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
+import { NetworkIcon } from "@/components/transactions/NetworkIcon";
 
 const Transactions = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -193,12 +194,18 @@ const Transactions = () => {
       ) : error ? (
         <Card className="p-12 text-center border-destructive">
           <p className="text-destructive mb-4">
-            Failed to load transactions. Please ensure your Moralis API key is configured.
+            Failed to load transactions. Please check your connection and try again.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Note: Transactions are fetched from 8 networks: Ethereum, Polygon, BSC, Avalanche, Fantom, Arbitrum, Optimism, and Base
           </p>
         </Card>
       ) : Object.keys(groupedTransactions).length === 0 ? (
         <Card className="p-12 text-center">
-          <p className="text-muted-foreground">No transactions found.</p>
+          <p className="text-muted-foreground mb-2">No transactions found.</p>
+          <p className="text-xs text-muted-foreground">
+            Checked across 8 networks: Ethereum, Polygon, BSC, Avalanche, Fantom, Arbitrum, Optimism, and Base
+          </p>
         </Card>
       ) : (
         <div className="space-y-8">
@@ -216,6 +223,7 @@ const Transactions = () => {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
+                        {/* Transaction direction icon */}
                         <div className={`rounded-full p-3 ${isSent ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
                           {isSent ? (
                             <ArrowDownLeft className="h-5 w-5 text-red-500" />
@@ -223,7 +231,8 @@ const Transactions = () => {
                             <ArrowUpRight className="h-5 w-5 text-green-500" />
                           )}
                         </div>
-                        <div>
+                        
+                        <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-semibold text-base">
                               {isSent ? "Sent" : "Received"}
@@ -232,8 +241,13 @@ const Transactions = () => {
                               {tx.receipt_status === "1" ? "Success" : "Failed"}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span className="font-medium">{getChainName(tx.chain)}</span>
+                          
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                            {/* Network icon and name */}
+                            <div className="flex items-center gap-1.5">
+                              <NetworkIcon chain={tx.chain} className="h-4 w-4" />
+                              <span className="font-medium">{getChainName(tx.chain)}</span>
+                            </div>
                             <span>•</span>
                             <span>
                               {new Date(tx.block_timestamp).toLocaleTimeString('en-US', {
@@ -242,21 +256,30 @@ const Transactions = () => {
                               })}
                             </span>
                           </div>
+                          
                           <a
                             href={getExplorerUrl(tx.chain, tx.hash)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
+                            className="text-xs text-primary hover:underline flex items-center gap-1"
                           >
                             {tx.hash.slice(0, 10)}...{tx.hash.slice(-8)}
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         </div>
                       </div>
+                      
                       <div className="text-right">
-                        <p className={`text-xl font-bold ${isSent ? 'text-red-500' : 'text-green-500'}`}>
-                          {isSent ? "-" : "+"}
-                          {formatNumber(amount, 6)} {symbol}
+                        <div className="flex items-center justify-end gap-2 mb-1">
+                          {/* Token icon */}
+                          <NetworkIcon chain={tx.chain} className="h-5 w-5" />
+                          <p className={`text-xl font-bold ${isSent ? 'text-red-500' : 'text-green-500'}`}>
+                            {isSent ? "-" : "+"}
+                            {formatNumber(amount, 6)}
+                          </p>
+                        </div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          {symbol}
                         </p>
                         <p className="text-sm text-foreground/70">
                           {formatUSD(usdValue)}
