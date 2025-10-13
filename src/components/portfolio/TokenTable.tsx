@@ -26,34 +26,58 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
   const [sortField, setSortField] = useState<SortField>("balanceUSD");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  // Get unique token symbols for price fetching - map network names to token symbols
-  const tokenSymbols = useMemo(() => {
-    const symbols = new Set<string>();
+  // Prepare tokens with address and network info for price fetching
+  const tokenInfos = useMemo(() => {
+    const infos = tokens.map(token => ({
+      symbol: token.symbol,
+      address: token.address,
+      network: token.network
+    }));
     
+    // Also add network native tokens
+    const nativeTokens = new Set<string>();
     tokens.forEach(token => {
-      // Add the token symbol
-      if (token.symbol) {
-        symbols.add(token.symbol);
-      }
-      
-      // Also add network native tokens
       if (token.network) {
         const network = token.network.toLowerCase();
-        if (network.includes('ethereum')) symbols.add('ETH');
-        if (network.includes('polygon')) symbols.add('MATIC');
-        if (network.includes('bsc') || network.includes('binance')) symbols.add('BNB');
-        if (network.includes('avalanche')) symbols.add('AVAX');
-        if (network.includes('fantom')) symbols.add('FTM');
-        if (network.includes('arbitrum')) symbols.add('ARB');
-        if (network.includes('optimism')) symbols.add('OP');
-        if (network.includes('base')) symbols.add('ETH');
+        if (network.includes('ethereum') && !nativeTokens.has('ETH')) {
+          infos.push({ symbol: 'ETH', network: 'ethereum', address: undefined });
+          nativeTokens.add('ETH');
+        }
+        if (network.includes('polygon') && !nativeTokens.has('MATIC')) {
+          infos.push({ symbol: 'MATIC', network: 'polygon', address: undefined });
+          nativeTokens.add('MATIC');
+        }
+        if ((network.includes('bsc') || network.includes('binance')) && !nativeTokens.has('BNB')) {
+          infos.push({ symbol: 'BNB', network: 'bsc', address: undefined });
+          nativeTokens.add('BNB');
+        }
+        if (network.includes('avalanche') && !nativeTokens.has('AVAX')) {
+          infos.push({ symbol: 'AVAX', network: 'avalanche', address: undefined });
+          nativeTokens.add('AVAX');
+        }
+        if (network.includes('fantom') && !nativeTokens.has('FTM')) {
+          infos.push({ symbol: 'FTM', network: 'fantom', address: undefined });
+          nativeTokens.add('FTM');
+        }
+        if (network.includes('arbitrum') && !nativeTokens.has('ARB')) {
+          infos.push({ symbol: 'ARB', network: 'arbitrum', address: undefined });
+          nativeTokens.add('ARB');
+        }
+        if (network.includes('optimism') && !nativeTokens.has('OP')) {
+          infos.push({ symbol: 'OP', network: 'optimism', address: undefined });
+          nativeTokens.add('OP');
+        }
+        if (network.includes('base') && !nativeTokens.has('BASE-ETH')) {
+          infos.push({ symbol: 'ETH', network: 'base', address: undefined });
+          nativeTokens.add('BASE-ETH');
+        }
       }
     });
     
-    return Array.from(symbols);
+    return infos;
   }, [tokens]);
 
-  const { data: priceData } = useTokenPrices(tokenSymbols);
+  const { data: priceData } = useTokenPrices(tokenInfos);
   
   // Create a mapping for common wrapped tokens
   const getTokenPrice = (symbol: string, network: string) => {

@@ -27,23 +27,23 @@ const Transactions = () => {
     return Object.values(txsByChain).flat();
   }, [txsByChain]);
 
-  // Get unique token symbols for price fetching
-  const tokenSymbols = useMemo(() => {
+  // Get unique token infos for price fetching
+  const tokenInfos = useMemo(() => {
     const chains = Object.keys(txsByChain || {});
     return [...new Set(chains.map(chain => {
-      if (chain === "eth") return "ETH";
-      if (chain === "polygon") return "MATIC";
-      if (chain === "bsc") return "BNB";
-      if (chain === "avalanche") return "AVAX";
-      if (chain === "fantom") return "FTM";
-      if (chain === "arbitrum") return "ETH";
-      if (chain === "optimism") return "ETH";
-      if (chain === "base") return "ETH";
-      return "ETH";
-    }))];
+      if (chain === "eth") return JSON.stringify({ symbol: "ETH", network: "ethereum" });
+      if (chain === "polygon") return JSON.stringify({ symbol: "MATIC", network: "polygon" });
+      if (chain === "bsc") return JSON.stringify({ symbol: "BNB", network: "bsc" });
+      if (chain === "avalanche") return JSON.stringify({ symbol: "AVAX", network: "avalanche" });
+      if (chain === "fantom") return JSON.stringify({ symbol: "FTM", network: "fantom" });
+      if (chain === "arbitrum") return JSON.stringify({ symbol: "ETH", network: "arbitrum" });
+      if (chain === "optimism") return JSON.stringify({ symbol: "ETH", network: "optimism" });
+      if (chain === "base") return JSON.stringify({ symbol: "ETH", network: "base" });
+      return JSON.stringify({ symbol: "ETH", network: "ethereum" });
+    }))].map(str => JSON.parse(str));
   }, [txsByChain]);
 
-  const { data: tokenPrices } = useTokenPrices(tokenSymbols);
+  const { data: tokenPrices } = useTokenPrices(tokenInfos);
 
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);

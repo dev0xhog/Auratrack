@@ -11,6 +11,12 @@ interface CoinGeckoResponse {
   [key: string]: TokenPrice;
 }
 
+interface TokenInfo {
+  symbol: string;
+  address?: string;
+  network?: string;
+}
+
 // Map common token symbols to CoinGecko IDs
 const symbolToGeckoId: { [key: string]: string } = {
   ETH: "ethereum",
@@ -49,53 +55,123 @@ const symbolToGeckoId: { [key: string]: string } = {
   BUSD: "binance-usd",
 };
 
-export const useTokenPrices = (symbols: string[]) => {
-  return useQuery<{ [symbol: string]: TokenPrice }>({
-    queryKey: ["token-prices", symbols.sort().join(",")],
-    queryFn: async () => {
-      if (!symbols || symbols.length === 0) return {};
+// Map network names to DexScreener chain IDs
+const networkToChainId: { [key: string]: string } = {
+  ethereum: "ethereum",
+  polygon: "polygon",
+  bsc: "bsc",
+  binance: "bsc",
+  avalanche: "avalanche",
+  fantom: "fantom",
+  arbitrum: "arbitrum",
+  optimism: "optimism",
+  base: "base",
+};
 
-      // Map symbols to CoinGecko IDs
+export const useTokenPrices = (tokens: TokenInfo[]) => {
+  return useQuery<{ [symbol: string]: TokenPrice }>({
+    queryKey: ["token-prices", JSON.stringify(tokens.map(t => ({ s: t.symbol, a: t.address })))],
+    queryFn: async () => {
+      if (!tokens || tokens.length === 0) return {};
+
+      const result: { [symbol: string]: TokenPrice } = {};
+
+      // Step 1: Try CoinGecko for known symbols
+      const symbols = tokens.map(t => t.symbol);
       const geckoIds = symbols
         .map((symbol) => symbolToGeckoId[symbol.toUpperCase()])
         .filter(Boolean);
 
-      if (geckoIds.length === 0) return {};
+      if (geckoIds.length > 0) {
+        const uniqueIds = [...new Set(geckoIds)];
+        const idsParam = uniqueIds.join(",");
 
-      const uniqueIds = [...new Set(geckoIds)];
-      const idsParam = uniqueIds.join(",");
+        try {
+          const response = await fetch(
+            `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`
+          );
 
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`
-      );
-
-      if (!response.ok) {
-        console.warn("Failed to fetch token prices from CoinGecko");
-        return {};
+          if (response.ok) {
+            const data = await response.json();
+            symbols.forEach((symbol) => {
+              const geckoId = symbolToGeckoId[symbol.toUpperCase()];
+              if (geckoId && data[geckoId]) {
+                result[symbol.toUpperCase()] = {
+                  id: geckoId,
+                  symbol: symbol.toUpperCase(),
+                  current_price: data[geckoId].usd,
+                  price_change_percentage_24h: data[geckoId].usd_24h_change || 0,
+                };
+              }
+            });
+          }
+        } catch (error) {
+          console.warn("CoinGecko API error:", error);
+        }
       }
 
-      const data = await response.json();
+      // Step 2: Use DexScreener for tokens without CoinGecko data
+      const tokensWithoutPrice = tokens.filter(
+        (token) => !result[token.symbol.toUpperCase()] && token.address && token.network
+      );
 
-      // Map back to symbols
-      const result: { [symbol: string]: TokenPrice } = {};
-      symbols.forEach((symbol) => {
-        const geckoId = symbolToGeckoId[symbol.toUpperCase()];
-        if (geckoId && data[geckoId]) {
-          result[symbol.toUpperCase()] = {
-            id: geckoId,
-            symbol: symbol.toUpperCase(),
-            current_price: data[geckoId].usd,
-            price_change_percentage_24h: data[geckoId].usd_24h_change || 0,
-          };
+      if (tokensWithoutPrice.length > 0) {
+        // Group by network for efficient batching
+        const tokensByNetwork: { [network: string]: TokenInfo[] } = {};
+        tokensWithoutPrice.forEach((token) => {
+          const networkKey = token.network!.toLowerCase();
+          if (!tokensByNetwork[networkKey]) {
+            tokensByNetwork[networkKey] = [];
+          }
+          tokensByNetwork[networkKey].push(token);
+        });
+
+        // Fetch from DexScreener
+        for (const [network, networkTokens] of Object.entries(tokensByNetwork)) {
+          const addresses = networkTokens.map(t => t.address).filter(Boolean);
+          if (addresses.length === 0) continue;
+
+          try {
+            // DexScreener accepts comma-separated addresses
+            const addressesParam = addresses.join(",");
+            const response = await fetch(
+              `https://api.dexscreener.com/latest/dex/tokens/${addressesParam}`
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              
+              // DexScreener returns { pairs: [...] }
+              if (data.pairs && Array.isArray(data.pairs)) {
+                networkTokens.forEach((token) => {
+                  // Find the pair for this token
+                  const pair = data.pairs.find((p: any) => 
+                    p.baseToken?.address?.toLowerCase() === token.address?.toLowerCase()
+                  );
+
+                  if (pair && pair.priceUsd) {
+                    result[token.symbol.toUpperCase()] = {
+                      id: token.address || token.symbol,
+                      symbol: token.symbol.toUpperCase(),
+                      current_price: parseFloat(pair.priceUsd),
+                      price_change_percentage_24h: parseFloat(pair.priceChange?.h24 || "0"),
+                    };
+                  }
+                });
+              }
+            }
+          } catch (error) {
+            console.warn(`DexScreener API error for ${network}:`, error);
+          }
         }
-      });
+      }
 
       return result;
     },
-    enabled: symbols.length > 0,
+    enabled: tokens.length > 0,
     staleTime: 60000, // 1 minute
     retry: 1,
   });
 };
 
-export type { TokenPrice };
+export type { TokenPrice, TokenInfo };
