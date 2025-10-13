@@ -11,7 +11,7 @@ interface PortfolioStrategiesSectionProps {
 export const PortfolioStrategiesSection = ({ address }: PortfolioStrategiesSectionProps) => {
   const { data, isLoading, error } = usePortfolioStrategies(address);
 
-  // Strategies are already normalized by the hook
+  // Strategies are already flattened by the hook
   const strategies = data?.strategies || [];
 
   // Loading state
