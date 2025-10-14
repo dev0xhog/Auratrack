@@ -3,13 +3,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, ArrowUpRight, ArrowDownLeft, ExternalLink, Filter } from "lucide-react";
+import { Search, ArrowUpRight, ArrowDownLeft, ExternalLink, Filter, Repeat } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useMoralisTransactionsByChain } from "@/hooks/useMoralisTransactionsByChain";
+import { useMoralisTokenTransfersByChain } from "@/hooks/useMoralisTokenTransfersByChain";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber, formatUSD } from "@/lib/formatters";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { NetworkIcon } from "@/components/transactions/NetworkIcon";
+import { TokenIcon } from "@/components/transactions/TokenIcon";
 
 const Transactions = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,14 +20,77 @@ const Transactions = () => {
   const [searchParams] = useSearchParams();
   const walletAddress = searchParams.get("address") || undefined;
   
-  // Moralis for multi-chain transactions
-  const { data: txsByChain, isLoading, error } = useMoralisTransactionsByChain(walletAddress);
+  // Fetch both native transactions and token transfers
+  const { data: txsByChain, isLoading: txsLoading, error: txsError } = useMoralisTransactionsByChain(walletAddress);
+  const { data: transfersByChain, isLoading: transfersLoading, error: transfersError } = useMoralisTokenTransfersByChain(walletAddress);
   
-  // Flatten all transactions from all chains
+  const isLoading = txsLoading || transfersLoading;
+  const error = txsError || transfersError;
+
+  // Unified transaction type
+  type UnifiedTransaction = {
+    hash: string;
+    from_address: string;
+    to_address: string;
+    value: string;
+    block_timestamp: string;
+    chain: string;
+    receipt_status?: string;
+    type: 'native' | 'erc20';
+    token_symbol?: string;
+    token_logo?: string;
+    token_decimals?: string;
+    token_address?: string;
+  };
+
+  // Merge native transactions and token transfers
   const allTransactions = useMemo(() => {
-    if (!txsByChain) return [];
-    return Object.values(txsByChain).flat();
-  }, [txsByChain]);
+    const unified: UnifiedTransaction[] = [];
+    
+    // Add native transactions
+    if (txsByChain) {
+      Object.entries(txsByChain).forEach(([chain, txs]) => {
+        txs.forEach(tx => {
+          unified.push({
+            hash: tx.hash,
+            from_address: tx.from_address,
+            to_address: tx.to_address,
+            value: tx.value,
+            block_timestamp: tx.block_timestamp,
+            chain,
+            receipt_status: tx.receipt_status,
+            type: 'native',
+          });
+        });
+      });
+    }
+    
+    // Add token transfers
+    if (transfersByChain) {
+      Object.entries(transfersByChain).forEach(([chain, transfers]) => {
+        transfers.forEach(transfer => {
+          unified.push({
+            hash: transfer.transaction_hash,
+            from_address: transfer.from_address,
+            to_address: transfer.to_address,
+            value: transfer.value,
+            block_timestamp: transfer.block_timestamp,
+            chain,
+            type: 'erc20',
+            token_symbol: transfer.token_symbol,
+            token_logo: transfer.token_logo,
+            token_decimals: transfer.token_decimals,
+            token_address: transfer.token_address,
+          });
+        });
+      });
+    }
+    
+    // Sort by timestamp (newest first)
+    return unified.sort((a, b) => 
+      new Date(b.block_timestamp).getTime() - new Date(a.block_timestamp).getTime()
+    );
+  }, [txsByChain, transfersByChain]);
 
   // Get unique token infos for price fetching
   const tokenInfos = useMemo(() => {
@@ -86,12 +151,31 @@ const Transactions = () => {
     return `https://etherscan.io/tx/${hash}`;
   };
 
-  const formatValue = (value: string, chain: string) => {
-    const amount = parseFloat(value) / 1e18;
-    const symbol = getChainSymbol(chain);
+  const formatValue = (tx: UnifiedTransaction) => {
+    let amount: number;
+    let symbol: string;
+    
+    if (tx.type === 'erc20') {
+      const decimals = parseInt(tx.token_decimals || '18');
+      amount = parseFloat(tx.value) / Math.pow(10, decimals);
+      symbol = tx.token_symbol || 'Unknown';
+    } else {
+      amount = parseFloat(tx.value) / 1e18;
+      symbol = getChainSymbol(tx.chain);
+    }
+    
     const price = tokenPrices?.[symbol]?.current_price || 0;
     const usdValue = amount * price;
     return { amount, usdValue, symbol };
+  };
+
+  const getTransactionType = (tx: UnifiedTransaction, walletAddress: string): 'sent' | 'received' | 'swap' => {
+    const isSent = tx.from_address.toLowerCase() === walletAddress.toLowerCase();
+    const isReceived = tx.to_address.toLowerCase() === walletAddress.toLowerCase();
+    
+    // If both from and to are the same address, it could be a swap or self-transfer
+    if (isSent && isReceived) return 'swap';
+    return isSent ? 'sent' : 'received';
   };
 
   // Filter and search transactions
@@ -113,7 +197,7 @@ const Transactions = () => {
     // Hide low value transactions
     if (hideLowValue) {
       filtered = filtered.filter((tx) => {
-        const { usdValue } = formatValue(tx.value, tx.chain);
+        const { usdValue } = formatValue(tx);
         return usdValue >= 0.1;
       });
     }
@@ -213,33 +297,48 @@ const Transactions = () => {
             <div key={date} className="space-y-4">
               <h2 className="text-lg font-semibold text-muted-foreground">{date}</h2>
               {txs.map((tx) => {
-                const isSent = tx.from_address.toLowerCase() === walletAddress?.toLowerCase();
-                const { amount, usdValue, symbol } = formatValue(tx.value, tx.chain);
+                if (!walletAddress) return null;
+                
+                const txType = getTransactionType(tx, walletAddress);
+                const { amount, usdValue, symbol } = formatValue(tx);
                 
                 return (
                   <Card
-                    key={tx.hash}
+                    key={`${tx.hash}-${tx.token_address || 'native'}`}
                     className="gradient-card border-border/40 p-6 transition-smooth hover:border-primary/40"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         {/* Transaction direction icon */}
-                        <div className={`rounded-full p-3 ${isSent ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
-                          {isSent ? (
-                            <ArrowDownLeft className="h-5 w-5 text-red-500" />
+                        <div className={`rounded-full p-3 ${
+                          txType === 'sent' ? 'bg-destructive/10' : 
+                          txType === 'swap' ? 'bg-accent' : 
+                          'bg-success/10'
+                        }`}>
+                          {txType === 'sent' ? (
+                            <ArrowDownLeft className="h-5 w-5 text-destructive" />
+                          ) : txType === 'swap' ? (
+                            <Repeat className="h-5 w-5 text-accent-foreground" />
                           ) : (
-                            <ArrowUpRight className="h-5 w-5 text-green-500" />
+                            <ArrowUpRight className="h-5 w-5 text-success" />
                           )}
                         </div>
                         
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-base">
-                              {isSent ? "Sent" : "Received"}
+                            <span className="font-semibold text-base capitalize">
+                              {txType}
                             </span>
-                            <Badge variant="outline" className="text-xs">
-                              {tx.receipt_status === "1" ? "Success" : "Failed"}
-                            </Badge>
+                            {tx.type === 'erc20' && (
+                              <Badge variant="secondary" className="text-xs">
+                                ERC-20
+                              </Badge>
+                            )}
+                            {tx.receipt_status && (
+                              <Badge variant="outline" className="text-xs">
+                                {tx.receipt_status === "1" ? "Success" : "Failed"}
+                              </Badge>
+                            )}
                           </div>
                           
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
@@ -271,19 +370,33 @@ const Transactions = () => {
                       
                       <div className="text-right">
                         <div className="flex items-center justify-end gap-2 mb-1">
-                          {/* Token icon */}
-                          <NetworkIcon chain={tx.chain} className="h-5 w-5" />
-                          <p className={`text-xl font-bold ${isSent ? 'text-red-500' : 'text-green-500'}`}>
-                            {isSent ? "-" : "+"}
-                            {formatNumber(amount, 6)}
+                          {/* Token icon - use proper token logo for ERC-20 */}
+                          {tx.type === 'erc20' ? (
+                            <TokenIcon 
+                              logoUrl={tx.token_logo} 
+                              symbol={tx.token_symbol}
+                              className="h-6 w-6"
+                            />
+                          ) : (
+                            <NetworkIcon chain={tx.chain} className="h-6 w-6" />
+                          )}
+                          <p className={`text-xl font-bold ${
+                            txType === 'sent' ? 'text-destructive' : 
+                            txType === 'swap' ? 'text-foreground' : 
+                            'text-success'
+                          }`}>
+                            {txType === 'sent' ? '-' : txType === 'swap' ? '' : '+'}
+                            {formatNumber(amount, amount < 1 ? 6 : 2)}
                           </p>
                         </div>
                         <p className="text-sm font-medium text-muted-foreground">
                           {symbol}
                         </p>
-                        <p className="text-sm text-foreground/70">
-                          {formatUSD(usdValue)}
-                        </p>
+                        {usdValue > 0 && (
+                          <p className="text-sm text-muted-foreground/70">
+                            {formatUSD(usdValue)}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </Card>
