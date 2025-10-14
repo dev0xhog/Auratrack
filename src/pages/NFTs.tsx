@@ -3,11 +3,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Image, ExternalLink, Filter } from "lucide-react";
-import { useMoralisNFTsByChain } from "@/hooks/useMoralisNFTsByChain";
+import { useMoralisNFTsByChain, type MoralisNFT } from "@/hooks/useMoralisNFTsByChain";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams } from "react-router-dom";
 import { formatUSD } from "@/lib/formatters";
-import type { MoralisNFT } from "@/hooks/useMoralisNFTs";
 
 const NFTs = () => {
   const [searchParams] = useSearchParams();
@@ -35,6 +34,10 @@ const NFTs = () => {
   };
 
   const isSpamNFT = (nft: MoralisNFT): boolean => {
+    // Use Moralis' spam detection first
+    if (nft.possible_spam === true) return true;
+    if (nft.verified_collection === true) return false;
+
     const metadata = typeof nft.normalized_metadata === 'object' 
       ? nft.normalized_metadata 
       : nft.metadata && typeof nft.metadata === 'object' 
@@ -42,8 +45,14 @@ const NFTs = () => {
       : null;
 
     const imageUrl = getImageUrl(nft);
-    const name = nft.name || metadata?.name;
+    const name = (nft.name || metadata?.name || '').toLowerCase();
     const tokenId = nft.token_id || '';
+    
+    // Spam keywords to check
+    const spamKeywords = [
+      'airdrop', 'claim', 'bonus', 'free', 'reward', 'visit',
+      '🎁', '🎉', '💰', '🚀', '💎', '⚡', '🔥'
+    ];
     
     // Multiple spam indicators
     const checks = [
@@ -56,14 +65,8 @@ const NFTs = () => {
       // No name
       !name,
       
-      // Generic or suspicious names
-      name && (
-        name.toLowerCase().includes('airdrop') ||
-        name.toLowerCase().includes('claim') ||
-        name.toLowerCase().includes('free') ||
-        name.toLowerCase().includes('reward') ||
-        name.toLowerCase().includes('visit')
-      ),
+      // Spam keywords in name
+      spamKeywords.some(keyword => name.includes(keyword)),
       
       // Invalid or suspicious image URLs
       imageUrl && (
@@ -115,7 +118,7 @@ const NFTs = () => {
           className="gap-2"
         >
           <Filter className="h-4 w-4" />
-          {hideSpam ? "Hide Spam" : "Show All"}
+          {hideSpam ? "Hiding Spam" : "Show Hidden NFTs"}
         </Button>
       </div>
 

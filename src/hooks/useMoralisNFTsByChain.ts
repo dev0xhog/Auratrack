@@ -19,6 +19,8 @@ interface MoralisNFT {
   contract_type: string;
   floor_price?: number;
   floor_price_usd?: number;
+  possible_spam?: boolean;
+  verified_collection?: boolean;
 }
 
 interface MoralisNFTsResponse {
