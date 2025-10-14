@@ -51,6 +51,7 @@ const NFTs = () => {
     // Spam keywords to check
     const spamKeywords = [
       'airdrop', 'claim', 'bonus', 'free', 'reward', 'visit',
+      'content', 'condor', '.com', '$', 'free eth', 'eth voucher',
       '🎁', '🎉', '💰', '🚀', '💎', '⚡', '🔥'
     ];
     
@@ -75,9 +76,9 @@ const NFTs = () => {
       ),
     ];
     
-    // Consider spam if multiple indicators are present
+    // Be strict: consider spam if any indicator is present
     const spamIndicators = checks.filter(Boolean).length;
-    return spamIndicators >= 2;
+    return spamIndicators >= 1;
   };
 
   // Helper function to filter spam before counting
@@ -118,7 +119,7 @@ const NFTs = () => {
           className="gap-2"
         >
           <Filter className="h-4 w-4" />
-          {hideSpam ? "Hiding Spam" : "Show Hidden NFTs"}
+          {hideSpam ? "Hide Spam" : "Show Hidden NFTs"}
         </Button>
       </div>
 
@@ -247,12 +248,12 @@ const NFTs = () => {
                       )}
                     </div>
                     <a
-                      href={`https://etherscan.io/token/${nft.token_address}?a=${nft.token_id}`}
+                      href={`https://opensea.io/assets/ethereum/${nft.token_address}/${nft.token_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                     >
-                      View on Explorer
+                      View on OpenSea
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   </div>
