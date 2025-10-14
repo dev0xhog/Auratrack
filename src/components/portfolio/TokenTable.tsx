@@ -13,6 +13,8 @@ import {
 import type { Token } from "@/hooks/usePortfolioBalances";
 import { formatBalance, formatUSD, formatPercentage } from "@/lib/formatters";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
+import { TokenLogo } from "./TokenLogo";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface TokenTableProps {
   tokens: Token[];
@@ -77,7 +79,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     return infos;
   }, [tokens]);
 
-  const { data: priceData } = useTokenPrices(tokenInfos);
+  const { data: priceData, isLoading: isPriceLoading } = useTokenPrices(tokenInfos);
   
   // Create a mapping for common wrapped tokens
   const getTokenPrice = (symbol: string, network: string) => {
@@ -259,9 +261,20 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                   <TableRow key={`${token.address}-${index}`} className="hover:bg-muted/50">
                     <TableCell>
                       <div className="flex items-center gap-3">
+                        {isPriceLoading ? (
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                        ) : (
+                          <TokenLogo
+                            src={tokenPrice?.logo}
+                            symbol={token.symbol}
+                            size="md"
+                          />
+                        )}
                         <div>
                           <p className="font-medium">{token.symbol}</p>
-                          <p className="text-xs text-muted-foreground">{token.network}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {tokenPrice?.name || token.network}
+                          </p>
                         </div>
                       </div>
                     </TableCell>
