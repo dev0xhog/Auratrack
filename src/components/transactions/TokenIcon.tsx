@@ -24,6 +24,20 @@ export const TokenIcon = ({ logoUrl, symbol, className = "h-8 w-8", address, net
 
     const networkLower = network.toLowerCase();
     
+    // Hardcoded fallbacks for Base tokens
+    if (networkLower.includes('base')) {
+      const baseTokenLogos: { [key: string]: string } = {
+        '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913': 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
+      };
+      
+      const logo = baseTokenLogos[address.toLowerCase()];
+      if (logo) {
+        setCurrentLogo(logo);
+        setIsLoading(false);
+        return;
+      }
+    }
+
     // Hardcoded fallbacks for Mantle tokens
     if (networkLower.includes('mantle')) {
       const mantleTokenLogos: { [key: string]: string } = {
