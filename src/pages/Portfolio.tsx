@@ -10,6 +10,7 @@ import { useSearchParams } from "react-router-dom";
 import { formatUSD } from "@/lib/formatters";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 
 const Portfolio = () => {
   const [searchParams] = useSearchParams();
@@ -62,6 +63,88 @@ const Portfolio = () => {
     const changePercent = totalValue > 0 ? (totalChange / totalValue) * 100 : 0;
     return { change: totalChange, changePercent };
   }, [priceData, allTokens, totalValue]);
+
+  // Fetch historical prices for accurate 24hr PnL calculation
+  const { data: historicalPnL, isLoading: isPnLLoading } = useQuery({
+    queryKey: ["portfolio-24hr-pnl", walletAddress, totalValue],
+    queryFn: async () => {
+      if (!allTokens.length || totalValue === 0) {
+        return { change: 0, changePercent: 0 };
+      }
+
+      try {
+        // Get unique symbols
+        const uniqueSymbols = [...new Set(allTokens.map(t => t.symbol.toUpperCase()))];
+        
+        // Calculate timestamp for 24 hours ago
+        const now = Date.now();
+        const yesterday = now - 24 * 60 * 60 * 1000;
+
+        // Fetch historical prices for all tokens
+        const historicalPrices: { [symbol: string]: number } = {};
+        
+        // Batch fetch current prices with historical data
+        const response = await fetch(
+          `https://api.coincap.io/v2/assets?limit=2000`,
+          {
+            headers: {
+              'Accept': 'application/json'
+            }
+          }
+        );
+
+        if (!response.ok) {
+          console.error('Failed to fetch CoinCap data for PnL calculation');
+          return { change: 0, changePercent: 0 };
+        }
+
+        const responseData = await response.json();
+        const assets = responseData.data || [];
+
+        // Calculate portfolio value 24h ago using price change percentage
+        let totalValue24hAgo = 0;
+        
+        allTokens.forEach(token => {
+          const asset = assets.find((a: any) => 
+            a.symbol?.toUpperCase() === token.symbol.toUpperCase()
+          );
+          
+          if (asset && asset.priceUsd && asset.changePercent24Hr) {
+            const currentPrice = parseFloat(asset.priceUsd);
+            const changePercent = parseFloat(asset.changePercent24Hr);
+            
+            // Calculate price 24h ago: price24h = currentPrice / (1 + changePercent/100)
+            const price24hAgo = currentPrice / (1 + changePercent / 100);
+            
+            // Calculate value 24h ago for this token
+            const value24hAgo = token.balance * price24hAgo;
+            totalValue24hAgo += value24hAgo;
+          } else {
+            // If no price change data, assume value was the same
+            totalValue24hAgo += token.balanceUSD;
+          }
+        });
+
+        const change = totalValue - totalValue24hAgo;
+        const changePercent = totalValue24hAgo > 0 ? (change / totalValue24hAgo) * 100 : 0;
+
+        console.log('24hr PnL calculated:', {
+          currentValue: totalValue,
+          value24hAgo: totalValue24hAgo,
+          change,
+          changePercent
+        });
+
+        return { change, changePercent };
+      } catch (error) {
+        console.error('Error calculating 24hr PnL:', error);
+        return { change: 0, changePercent: 0 };
+      }
+    },
+    enabled: !!walletAddress && allTokens.length > 0 && totalValue > 0,
+    staleTime: 60000, // 1 minute
+    retry: 2,
+  });
 
   // Count total tokens
   const totalAssets = data?.portfolio.reduce((count, item) => count + item.tokens.length, 0) || 0;
@@ -160,8 +243,8 @@ const Portfolio = () => {
               title="Total Portfolio Value"
               value={formatUSD(totalValue)}
               icon={DollarSign}
-              trend={portfolio24hrChange.change}
-              trendPercentage={portfolio24hrChange.changePercent}
+              trend={historicalPnL?.change || 0}
+              trendPercentage={historicalPnL?.changePercent || 0}
             />
             <StatCard
               title="Total Assets"
