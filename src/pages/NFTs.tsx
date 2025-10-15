@@ -13,6 +13,7 @@ const NFTs = () => {
   const [searchParams] = useSearchParams();
   const walletAddress = searchParams.get("address") || undefined;
   const [hideSpam, setHideSpam] = useState(true);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const { data: nftsByChain, isLoading, error } = useMoralisNFTsByChain(walletAddress);
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
 
@@ -41,8 +42,18 @@ const NFTs = () => {
           nfts.map(nft => ({ ...nft, chain }))
         );
     
-    return nftsWithChain.filter(nft => !hideSpam || !isSpamNFT(nft));
-  }, [nftsByChain, selectedNetwork, hideSpam]);
+    let filtered = nftsWithChain;
+    
+    if (hideSpam) {
+      filtered = filtered.filter(nft => !isSpamNFT(nft));
+    }
+    
+    if (verifiedOnly) {
+      filtered = filtered.filter(nft => nft.verified_collection);
+    }
+    
+    return filtered;
+  }, [nftsByChain, selectedNetwork, hideSpam, verifiedOnly]);
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -51,14 +62,22 @@ const NFTs = () => {
           <h1 className="text-4xl font-bold mb-2">NFT Collection</h1>
           <p className="text-muted-foreground">Your digital art and collectibles</p>
         </div>
-        <Button
-          variant={hideSpam ? "default" : "outline"}
-          onClick={() => setHideSpam(!hideSpam)}
-          className="gap-2"
-        >
-          <Filter className="h-4 w-4" />
-          {hideSpam ? "Hide Spam" : "Show Hidden NFTs"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant={hideSpam ? "default" : "outline"}
+            onClick={() => setHideSpam(!hideSpam)}
+            className="gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            {hideSpam ? "Hide Spam" : "Show All"}
+          </Button>
+          <Button
+            variant={verifiedOnly ? "default" : "outline"}
+            onClick={() => setVerifiedOnly(!verifiedOnly)}
+          >
+            {verifiedOnly ? "✓ Verified" : "All Collections"}
+          </Button>
+        </div>
       </div>
 
       {!walletAddress ? (
@@ -113,7 +132,11 @@ const NFTs = () => {
             <Card className="p-12 text-center">
               <Image className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-muted-foreground">
-                {hideSpam ? "No NFTs found (try showing hidden NFTs)" : "No NFTs found"}
+                {verifiedOnly 
+                  ? "No verified NFTs found (try toggling filter)" 
+                  : hideSpam 
+                    ? "No NFTs found (try showing hidden NFTs)" 
+                    : "No NFTs found"}
               </p>
             </Card>
           ) : (
