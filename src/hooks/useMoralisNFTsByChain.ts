@@ -83,15 +83,17 @@ interface MoralisNFT {
 const SUPPORTED_CHAINS = [
   { id: "eth-mainnet", name: "Ethereum" },
   { id: "polygon-mainnet", name: "Polygon" },
-  { id: "arb-mainnet", name: "Arbitrum" },
   { id: "opt-mainnet", name: "Optimism" },
+  { id: "arb-mainnet", name: "Arbitrum" },
   { id: "base-mainnet", name: "Base" },
-  { id: "polygonzkevm-mainnet", name: "Polygon zkEVM" },
-  { id: "arbnova-mainnet", name: "Arbitrum Nova" },
   { id: "zksync-mainnet", name: "zkSync Era" },
   { id: "avax-mainnet", name: "Avalanche" },
-  { id: "bnb-mainnet", name: "BNB Chain" },
-  { id: "hyperliquid-mainnet", name: "Hyperliquid" },
+  { id: "hyperliquid-mainnet", name: "HyperEVM" },
+  { id: "zora-mainnet", name: "Zora" },
+  { id: "linea-mainnet", name: "Linea" },
+  { id: "gnosis-mainnet", name: "Gnosis" },
+  { id: "ink-mainnet", name: "Ink" },
+  { id: "arbnova-mainnet", name: "Arbitrum Nova" },
 ];
 
 // Helper to convert Alchemy NFT to our format
