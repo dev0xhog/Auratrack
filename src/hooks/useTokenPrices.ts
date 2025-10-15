@@ -78,93 +78,29 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
 
       const result: { [symbol: string]: TokenPrice } = {};
 
-      // Step 1: Fetch native tokens with full details including logos
+      // Step 1: Batch fetch native tokens using simple price endpoint
       const nativeTokens = tokens.filter(t => !t.address && symbolToGeckoId[t.symbol.toUpperCase()]);
       
       if (nativeTokens.length > 0) {
         const uniqueIds = [...new Set(nativeTokens.map(t => symbolToGeckoId[t.symbol.toUpperCase()]))];
-        
-        // Fetch detailed data for each native token
-        for (const geckoId of uniqueIds) {
-          try {
-            const response = await fetch(
-              `https://api.coingecko.com/api/v3/coins/${geckoId}?localization=false&tickers=false&community_data=false&developer_data=false`
-            );
-            
-            if (response.ok) {
-              const data = await response.json();
-              const symbol = data.symbol.toUpperCase();
-              
-              result[symbol] = {
-                id: geckoId,
-                symbol: symbol,
-                name: data.name,
-                current_price: data.market_data?.current_price?.usd || 0,
-                price_change_percentage_24h: data.market_data?.price_change_percentage_24h || 0,
-                logo: data.image?.large || data.image?.small,
-              };
-            }
-          } catch (error) {
-            console.warn(`CoinGecko API error for ${geckoId}:`, error);
-          }
-        }
-      }
-
-      // Step 2: Fetch ERC-20 tokens using contract addresses
-      const erc20Tokens = tokens.filter(t => t.address && t.network);
-      
-      for (const token of erc20Tokens) {
-        if (result[token.symbol.toUpperCase()]) continue; // Skip if already fetched
-        
-        const platformId = networkToPlatformId[token.network.toLowerCase()];
-        if (!platformId || !token.address) continue;
+        const idsParam = uniqueIds.join(",");
         
         try {
           const response = await fetch(
-            `https://api.coingecko.com/api/v3/coins/${platformId}/contract/${token.address}`
+            `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`,
+            { mode: 'cors' }
           );
           
           if (response.ok) {
             const data = await response.json();
             
-            result[token.symbol.toUpperCase()] = {
-              id: data.id,
-              symbol: token.symbol.toUpperCase(),
-              name: data.name,
-              current_price: data.market_data?.current_price?.usd || 0,
-              price_change_percentage_24h: data.market_data?.price_change_percentage_24h || 0,
-              logo: data.image?.large || data.image?.small,
-            };
-          }
-        } catch (error) {
-          console.warn(`CoinGecko API error for ${token.symbol} on ${token.network}:`, error);
-        }
-      }
-
-      // Step 3: Fallback - Try simple price endpoint for any remaining tokens
-      const tokensWithoutPrice = tokens.filter(t => !result[t.symbol.toUpperCase()]);
-      const symbols = tokensWithoutPrice.map(t => t.symbol);
-      const geckoIds = symbols
-        .map((symbol) => symbolToGeckoId[symbol.toUpperCase()])
-        .filter(Boolean);
-
-      if (geckoIds.length > 0) {
-        const uniqueIds = [...new Set(geckoIds)];
-        const idsParam = uniqueIds.join(",");
-
-        try {
-          const response = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            symbols.forEach((symbol) => {
-              const geckoId = symbolToGeckoId[symbol.toUpperCase()];
-              if (geckoId && data[geckoId] && !result[symbol.toUpperCase()]) {
-                result[symbol.toUpperCase()] = {
+            // Map results back to symbols
+            nativeTokens.forEach(token => {
+              const geckoId = symbolToGeckoId[token.symbol.toUpperCase()];
+              if (geckoId && data[geckoId]) {
+                result[token.symbol.toUpperCase()] = {
                   id: geckoId,
-                  symbol: symbol.toUpperCase(),
+                  symbol: token.symbol.toUpperCase(),
                   current_price: data[geckoId].usd,
                   price_change_percentage_24h: data[geckoId].usd_24h_change || 0,
                 };
@@ -172,10 +108,56 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
             });
           }
         } catch (error) {
-          console.warn("CoinGecko simple price API error:", error);
+          console.warn("CoinGecko batch native tokens API error:", error);
         }
       }
 
+      // Step 2: Fetch ERC-20 tokens one by one (necessary due to API structure)
+      const erc20Tokens = tokens.filter(t => t.address && t.network);
+      
+      // Limit concurrent requests to avoid rate limiting
+      const batchSize = 5;
+      for (let i = 0; i < erc20Tokens.length; i += batchSize) {
+        const batch = erc20Tokens.slice(i, i + batchSize);
+        
+        await Promise.all(
+          batch.map(async (token) => {
+            if (result[token.symbol.toUpperCase()]) return; // Skip if already fetched
+            
+            const platformId = networkToPlatformId[token.network.toLowerCase()];
+            if (!platformId || !token.address) return;
+            
+            try {
+              const response = await fetch(
+                `https://api.coingecko.com/api/v3/coins/${platformId}/contract/${token.address}`,
+                { mode: 'cors' }
+              );
+              
+              if (response.ok) {
+                const data = await response.json();
+                
+                result[token.symbol.toUpperCase()] = {
+                  id: data.id,
+                  symbol: token.symbol.toUpperCase(),
+                  name: data.name,
+                  current_price: data.market_data?.current_price?.usd || 0,
+                  price_change_percentage_24h: data.market_data?.price_change_percentage_24h || 0,
+                  logo: data.image?.large || data.image?.small,
+                };
+              }
+            } catch (error) {
+              console.warn(`CoinGecko API error for ${token.symbol}:`, error);
+            }
+          })
+        );
+        
+        // Add small delay between batches to avoid rate limiting
+        if (i + batchSize < erc20Tokens.length) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+
+      console.log('Token prices fetched:', Object.keys(result).length, 'tokens');
       return result;
     },
     enabled: tokens.length > 0,
