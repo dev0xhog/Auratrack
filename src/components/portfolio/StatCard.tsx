@@ -12,18 +12,19 @@ interface StatCardProps {
 }
 
 export const StatCard = ({ title, value, change, icon: Icon, trend, trendPercentage }: StatCardProps) => {
-  const isPositive = trend && trend > 0;
-  const isNegative = trend && trend < 0;
+  const isPositive = trendPercentage && trendPercentage > 0;
+  const isNegative = trendPercentage && trendPercentage < 0;
   
   return (
     <Card className="p-6 transition-smooth hover:border-primary/20">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <div className="flex items-baseline gap-2 mt-2">
-            {trend !== undefined && (
+          <p className="text-sm text-muted-foreground mb-2">{title}</p>
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-3xl font-bold">{value}</h3>
+            {trendPercentage !== undefined && (
               <span
-                className={`text-sm font-semibold ${
+                className={`text-base font-semibold ${
                   isPositive
                     ? "text-green-600 dark:text-green-500"
                     : isNegative
@@ -31,24 +32,10 @@ export const StatCard = ({ title, value, change, icon: Icon, trend, trendPercent
                     : "text-muted-foreground"
                 }`}
               >
-                {isPositive ? "+" : ""}{formatUSD(trend)}
+                {isPositive ? "+" : ""}{formatPercentage(trendPercentage)}
               </span>
             )}
-            <h3 className="text-3xl font-bold">{value}</h3>
           </div>
-          {trendPercentage !== undefined && (
-            <p
-              className={`mt-1 text-sm font-medium ${
-                isPositive
-                  ? "text-green-600 dark:text-green-500"
-                  : isNegative
-                  ? "text-red-600 dark:text-red-500"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {isPositive ? "+" : ""}{formatPercentage(trendPercentage)} (24h)
-            </p>
-          )}
           {change && (
             <p className="mt-1 text-sm font-medium text-muted-foreground">
               {change}
