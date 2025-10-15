@@ -120,6 +120,10 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
       'arbitrum': 'arbitrum',
       'base': 'base',
       'fantom': 'fantom',
+      'mantle': 'mantle',
+      'linea': 'linea',
+      'scroll': 'scroll',
+      'zksync': 'zksync',
     };
     
     const networkLower = (network || '').toLowerCase();
@@ -295,6 +299,8 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                             src={tokenPrice?.logo}
                             symbol={token.symbol}
                             size="md"
+                            address={token.address}
+                            network={token.network}
                           />
                         )}
                         <div>
