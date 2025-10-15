@@ -70,16 +70,27 @@ const NFTs = () => {
           </p>
         </Card>
       ) : isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(8)].map((_, i) => (
-            <Card key={i} className="overflow-hidden">
-              <Skeleton className="aspect-square w-full" />
-              <div className="p-4 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-              </div>
-            </Card>
-          ))}
+        <div className="space-y-6">
+          <Card className="p-6 text-center">
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="text-lg font-medium">Loading NFTs from all chains...</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Fetching from Ethereum, Polygon, Arbitrum, Optimism, Base, and more
+            </p>
+          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <Card key={i} className="overflow-hidden">
+                <Skeleton className="aspect-square w-full" />
+                <div className="p-4 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
       ) : error ? (
         <Card className="p-12 text-center border-destructive">

@@ -186,9 +186,21 @@ export const useMoralisNFTsByChain = (address: string | undefined) => {
       const apiKey = import.meta.env.VITE_ALCHEMY_API_KEY || "Y6xWxPYl6VWoSXskte0gPJL1oDe9m9kS";
       const results: { [chainName: string]: MoralisNFT[] } = {};
 
+      // Fetch from fastest chains first (typically L2s are faster)
+      const priorityOrder = [
+        "Base", "Optimism", "Arbitrum", "Linea", 
+        "Ethereum", "Polygon", "Scroll", "Shape", "Arbitrum Nova"
+      ];
+      
+      const orderedChains = [...SUPPORTED_CHAINS].sort((a, b) => {
+        const aIndex = priorityOrder.indexOf(a.name);
+        const bIndex = priorityOrder.indexOf(b.name);
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      });
+
       // Fetch NFTs from all supported chains in parallel with full pagination
       await Promise.all(
-        SUPPORTED_CHAINS.map(async (chain) => {
+        orderedChains.map(async (chain) => {
           const nfts = await fetchAllNFTsForChain(chain, address, apiKey);
           if (nfts.length > 0) {
             results[chain.name] = nfts;
@@ -201,6 +213,7 @@ export const useMoralisNFTsByChain = (address: string | undefined) => {
     enabled: !!address,
     staleTime: 300000, // 5 minutes
     retry: 1,
+    refetchOnWindowFocus: false, // Prevent automatic refetching on tab focus
   });
 };
 
