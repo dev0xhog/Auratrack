@@ -39,8 +39,18 @@ export const useMoralisTokenTransfersByChain = (address: string | undefined) => 
       
       const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
       
-      const fetchChainTransfers = async (chain: string): Promise<MoralisTokenTransfer[]> => {
+      // Fetch transfers sequentially with delay to avoid rate limiting
+      const results: MoralisTokenTransfer[][] = [];
+      
+      for (let i = 0; i < SUPPORTED_CHAINS.length; i++) {
+        const chain = SUPPORTED_CHAINS[i];
+        
         try {
+          // Add delay between requests (except first one)
+          if (i > 0) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+          
           const response = await fetch(
             `https://deep-index.moralis.io/api/v2.2/${address}/erc20/transfers?chain=${chain}&limit=50`,
             {
@@ -51,21 +61,18 @@ export const useMoralisTokenTransfersByChain = (address: string | undefined) => 
           );
           
           if (!response.ok) {
-            console.warn(`Failed to fetch token transfers for ${chain}`);
-            return [];
+            console.warn(`Failed to fetch token transfers for ${chain}: ${response.status}`);
+            results.push([]);
+            continue;
           }
           
           const data: MoralisTokenTransfersResponse = await response.json();
-          return data.result.map(tx => ({ ...tx, chain }));
+          results.push(data.result.map(tx => ({ ...tx, chain })));
         } catch (error) {
           console.warn(`Error fetching token transfers for ${chain}:`, error);
-          return [];
+          results.push([]);
         }
-      };
-
-      const results = await Promise.all(
-        SUPPORTED_CHAINS.map(chain => fetchChainTransfers(chain))
-      );
+      }
 
       const transfersByChain: Record<string, MoralisTokenTransfer[]> = {};
       SUPPORTED_CHAINS.forEach((chain, index) => {

@@ -38,9 +38,18 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
       
       const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
       
-      // Fetch transactions from all chains in parallel
-      const fetchPromises = SUPPORTED_CHAINS.map(async (chain) => {
+      // Fetch transactions sequentially with delay to avoid rate limiting
+      const results: Array<{ chain: string; transactions: MoralisTransaction[] }> = [];
+      
+      for (let i = 0; i < SUPPORTED_CHAINS.length; i++) {
+        const chain = SUPPORTED_CHAINS[i];
+        
         try {
+          // Add delay between requests (except first one)
+          if (i > 0) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+          
           const response = await fetch(
             `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain}&limit=20`,
             {
@@ -51,8 +60,9 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
           );
           
           if (!response.ok) {
-            console.warn(`Failed to fetch transactions for ${chain}`);
-            return { chain, transactions: [] };
+            console.warn(`Failed to fetch transactions for ${chain}: ${response.status}`);
+            results.push({ chain, transactions: [] });
+            continue;
           }
           
           const data: MoralisTransactionsResponse = await response.json();
@@ -61,14 +71,12 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
             ...tx,
             chain,
           }));
-          return { chain, transactions: transactionsWithChain };
+          results.push({ chain, transactions: transactionsWithChain });
         } catch (error) {
           console.warn(`Error fetching transactions for ${chain}:`, error);
-          return { chain, transactions: [] };
+          results.push({ chain, transactions: [] });
         }
-      });
-      
-      const results = await Promise.all(fetchPromises);
+      }
       
       // Convert to object with chain as key
       const transactionsByChain: { [chain: string]: MoralisTransaction[] } = {};
