@@ -92,21 +92,62 @@ const Transactions = () => {
     );
   }, [txsByChain, transfersByChain]);
 
-  // Get unique token infos for price fetching
+  // Get unique token infos for price fetching (both native and ERC-20)
   const tokenInfos = useMemo(() => {
+    const tokenSet = new Map<string, { symbol: string; address?: string; network?: string }>();
+    
+    // Add native tokens for each chain
     const chains = Object.keys(txsByChain || {});
-    return [...new Set(chains.map(chain => {
-      if (chain === "eth") return JSON.stringify({ symbol: "ETH", network: "ethereum" });
-      if (chain === "polygon") return JSON.stringify({ symbol: "MATIC", network: "polygon" });
-      if (chain === "bsc") return JSON.stringify({ symbol: "BNB", network: "bsc" });
-      if (chain === "avalanche") return JSON.stringify({ symbol: "AVAX", network: "avalanche" });
-      if (chain === "fantom") return JSON.stringify({ symbol: "FTM", network: "fantom" });
-      if (chain === "arbitrum") return JSON.stringify({ symbol: "ETH", network: "arbitrum" });
-      if (chain === "optimism") return JSON.stringify({ symbol: "ETH", network: "optimism" });
-      if (chain === "base") return JSON.stringify({ symbol: "ETH", network: "base" });
-      return JSON.stringify({ symbol: "ETH", network: "ethereum" });
-    }))].map(str => JSON.parse(str));
-  }, [txsByChain]);
+    chains.forEach(chain => {
+      let key: string;
+      let token: { symbol: string; network?: string };
+      
+      if (chain === "eth") {
+        key = "ETH-ethereum";
+        token = { symbol: "ETH", network: "ethereum" };
+      } else if (chain === "polygon") {
+        key = "MATIC-polygon";
+        token = { symbol: "MATIC", network: "polygon" };
+      } else if (chain === "bsc") {
+        key = "BNB-bsc";
+        token = { symbol: "BNB", network: "bsc" };
+      } else if (chain === "avalanche") {
+        key = "AVAX-avalanche";
+        token = { symbol: "AVAX", network: "avalanche" };
+      } else if (chain === "fantom") {
+        key = "FTM-fantom";
+        token = { symbol: "FTM", network: "fantom" };
+      } else if (chain === "arbitrum") {
+        key = "ETH-arbitrum";
+        token = { symbol: "ETH", network: "arbitrum" };
+      } else if (chain === "optimism") {
+        key = "ETH-optimism";
+        token = { symbol: "ETH", network: "optimism" };
+      } else if (chain === "base") {
+        key = "ETH-base";
+        token = { symbol: "ETH", network: "base" };
+      } else {
+        key = "ETH-ethereum";
+        token = { symbol: "ETH", network: "ethereum" };
+      }
+      
+      tokenSet.set(key, token);
+    });
+    
+    // Add all unique ERC-20 tokens from transactions
+    allTransactions.forEach(tx => {
+      if (tx.type === 'erc20' && tx.token_address && tx.token_symbol) {
+        const key = `${tx.token_symbol}-${tx.token_address}`;
+        tokenSet.set(key, {
+          symbol: tx.token_symbol,
+          address: tx.token_address,
+          network: tx.chain,
+        });
+      }
+    });
+    
+    return Array.from(tokenSet.values());
+  }, [txsByChain, allTransactions]);
 
   const { data: tokenPrices } = useTokenPrices(tokenInfos);
 
@@ -392,11 +433,9 @@ const Transactions = () => {
                         <p className="text-sm font-medium text-muted-foreground">
                           {symbol}
                         </p>
-                        {usdValue > 0 && (
-                          <p className="text-sm text-muted-foreground/70">
-                            {formatUSD(usdValue)}
-                          </p>
-                        )}
+                        <p className="text-sm text-muted-foreground/70">
+                          {usdValue > 0 ? formatUSD(usdValue) : '—'}
+                        </p>
                       </div>
                     </div>
                   </Card>
