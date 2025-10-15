@@ -205,7 +205,8 @@ const Transactions = () => {
       symbol = getChainSymbol(tx.chain);
     }
     
-    const price = tokenPrices?.[symbol]?.current_price || 0;
+    // Uppercase symbol for price lookup (prices are stored with uppercase keys)
+    const price = tokenPrices?.[symbol.toUpperCase()]?.current_price || 0;
     const usdValue = amount * price;
     return { amount, usdValue, symbol };
   };
