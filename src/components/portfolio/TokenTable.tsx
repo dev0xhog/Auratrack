@@ -270,6 +270,8 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
               filteredAndSortedTokens.map((token, index) => {
                 const tokenPrice = getTokenPrice(token.symbol, token.network, token.balance, token.balanceUSD, token.address);
                 const currentPrice = tokenPrice?.current_price;
+                
+                console.log('Token network:', token.symbol, token.network);
 
                 return (
                   <TableRow key={`${token.address}-${index}`} className="hover:bg-muted/50">
@@ -286,10 +288,10 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                             network={token.network}
                           />
                         )}
-                        <div className="flex flex-col">
-                          <p className="font-semibold text-base">{token.symbol}</p>
-                          <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                            {token.network}
+                        <div className="flex flex-col gap-0.5">
+                          <p className="font-semibold text-base text-foreground">{token.symbol}</p>
+                          <p className="text-xs font-medium" style={{ color: 'hsl(var(--muted-foreground))' }}>
+                            {token.network || 'No network'}
                           </p>
                         </div>
                       </div>
