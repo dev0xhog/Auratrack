@@ -64,72 +64,68 @@ const Portfolio = () => {
     return { change: totalChange, changePercent };
   }, [priceData, allTokens, totalValue]);
 
-  // Fetch historical prices for accurate 24hr PnL calculation
+  // Fetch historical prices for accurate 24hr PnL calculation using CoinGecko
   const { data: historicalPnL, isLoading: isPnLLoading } = useQuery({
     queryKey: ["portfolio-24hr-pnl", walletAddress, totalValue, allTokens.length],
     queryFn: async () => {
-      console.log('Starting 24hr PnL calculation...', {
-        tokensCount: allTokens.length,
-        totalValue,
-        walletAddress
-      });
-
       if (!allTokens.length || totalValue === 0) {
-        console.log('No tokens or zero value, returning zero PnL');
         return { change: 0, changePercent: 0 };
       }
 
       try {
-        // Fetch current prices with historical data from CoinCap
-        const response = await fetch(
-          `https://api.coincap.io/v2/assets?limit=2000`,
-          {
-            headers: {
-              'Accept': 'application/json'
-            }
-          }
-        );
+        // Map common symbols to CoinGecko IDs
+        const symbolMap: { [key: string]: string } = {
+          'ETH': 'ethereum',
+          'WETH': 'weth',
+          'BTC': 'bitcoin',
+          'WBTC': 'wrapped-bitcoin',
+          'USDC': 'usd-coin',
+          'USDT': 'tether',
+          'DAI': 'dai',
+          'MATIC': 'matic-network',
+          'POL': 'matic-network',
+          'AVAX': 'avalanche-2',
+          'BNB': 'binancecoin',
+          'SOL': 'solana',
+          'USDT0': 'tether',
+        };
 
-        if (!response.ok) {
-          console.error('CoinCap API error:', response.status);
+        // Get unique token IDs
+        const coinIds = [...new Set(
+          allTokens
+            .map(t => symbolMap[t.symbol.toUpperCase()])
+            .filter(Boolean)
+        )].slice(0, 50).join(','); // CoinGecko free tier limit
+
+        if (!coinIds) {
           return { change: 0, changePercent: 0 };
         }
 
-        const responseData = await response.json();
-        const assets = responseData.data || [];
-        console.log('Fetched CoinCap assets:', assets.length);
+        // Fetch 24hr market data from CoinGecko
+        const response = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds}&vs_currencies=usd&include_24hr_change=true`,
+          { headers: { Accept: 'application/json' } }
+        );
 
-        // Calculate portfolio value 24h ago using price change percentage
+        if (!response.ok) {
+          console.error('CoinGecko API error:', response.status);
+          return { change: 0, changePercent: 0 };
+        }
+
+        const priceData = await response.json();
+
+        // Calculate portfolio value 24h ago
         let totalValue24hAgo = 0;
-        let tokensWithPriceData = 0;
-        
+
         allTokens.forEach(token => {
-          const asset = assets.find((a: any) => 
-            a.symbol?.toUpperCase() === token.symbol.toUpperCase()
-          );
+          const coinId = symbolMap[token.symbol.toUpperCase()];
           
-          if (asset && asset.priceUsd && asset.changePercent24Hr !== null) {
-            const currentPrice = parseFloat(asset.priceUsd);
-            const changePercent = parseFloat(asset.changePercent24Hr);
-            
-            // Calculate price 24h ago: price24h = currentPrice / (1 + changePercent/100)
-            const price24hAgo = currentPrice / (1 + changePercent / 100);
-            
-            // Calculate value 24h ago for this token
-            const value24hAgo = token.balance * price24hAgo;
+          if (coinId && priceData[coinId]?.usd_24h_change !== undefined) {
+            const changePercent = priceData[coinId].usd_24h_change;
+            const value24hAgo = token.balanceUSD / (1 + changePercent / 100);
             totalValue24hAgo += value24hAgo;
-            tokensWithPriceData++;
-            
-            console.log(`Token ${token.symbol}:`, {
-              currentPrice,
-              changePercent,
-              price24hAgo,
-              balance: token.balance,
-              value24hAgo,
-              currentValue: token.balanceUSD
-            });
           } else {
-            // If no price change data, assume value was the same
+            // For unmapped tokens, assume no change
             totalValue24hAgo += token.balanceUSD;
           }
         });
@@ -137,14 +133,7 @@ const Portfolio = () => {
         const change = totalValue - totalValue24hAgo;
         const changePercent = totalValue24hAgo > 0 ? (change / totalValue24hAgo) * 100 : 0;
 
-        console.log('24hr PnL calculation complete:', {
-          currentValue: totalValue,
-          value24hAgo: totalValue24hAgo,
-          change,
-          changePercent,
-          tokensWithPriceData,
-          totalTokens: allTokens.length
-        });
+        console.log('24hr PnL:', { change, changePercent });
 
         return { change, changePercent };
       } catch (error) {
@@ -153,11 +142,9 @@ const Portfolio = () => {
       }
     },
     enabled: !!walletAddress && allTokens.length > 0 && totalValue > 0,
-    staleTime: 60000, // 1 minute
+    staleTime: 60000,
     retry: 2,
   });
-
-  console.log('Historical PnL data:', historicalPnL);
 
   // Count total tokens
   const totalAssets = data?.portfolio.reduce((count, item) => count + item.tokens.length, 0) || 0;
