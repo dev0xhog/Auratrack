@@ -78,38 +78,39 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
 
       const result: { [symbol: string]: TokenPrice } = {};
 
-      // Step 1: Batch fetch native tokens using simple price endpoint
+      // Step 1: Fetch native tokens with full details including logos
       const nativeTokens = tokens.filter(t => !t.address && symbolToGeckoId[t.symbol.toUpperCase()]);
       
       if (nativeTokens.length > 0) {
         const uniqueIds = [...new Set(nativeTokens.map(t => symbolToGeckoId[t.symbol.toUpperCase()]))];
-        const idsParam = uniqueIds.join(",");
         
-        try {
-          const response = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`,
-            { mode: 'cors' }
-          );
-          
-          if (response.ok) {
-            const data = await response.json();
-            
-            // Map results back to symbols
-            nativeTokens.forEach(token => {
-              const geckoId = symbolToGeckoId[token.symbol.toUpperCase()];
-              if (geckoId && data[geckoId]) {
-                result[token.symbol.toUpperCase()] = {
-                  id: geckoId,
-                  symbol: token.symbol.toUpperCase(),
-                  current_price: data[geckoId].usd,
-                  price_change_percentage_24h: data[geckoId].usd_24h_change || 0,
+        // Fetch each native token individually to get logos and complete data
+        await Promise.all(
+          uniqueIds.map(async (geckoId) => {
+            try {
+              const response = await fetch(
+                `https://api.coingecko.com/api/v3/coins/${geckoId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false`,
+                { mode: 'cors' }
+              );
+              
+              if (response.ok) {
+                const data = await response.json();
+                const symbol = data.symbol.toUpperCase();
+                
+                result[symbol] = {
+                  id: data.id,
+                  symbol: symbol,
+                  name: data.name,
+                  current_price: data.market_data?.current_price?.usd || 0,
+                  price_change_percentage_24h: data.market_data?.price_change_percentage_24h || 0,
+                  logo: data.image?.large || data.image?.small || data.image?.thumb,
                 };
               }
-            });
-          }
-        } catch (error) {
-          console.warn("CoinGecko batch native tokens API error:", error);
-        }
+            } catch (error) {
+              console.warn(`CoinGecko API error for ${geckoId}:`, error);
+            }
+          })
+        );
       }
 
       // Step 2: Fetch ERC-20 tokens one by one (necessary due to API structure)
