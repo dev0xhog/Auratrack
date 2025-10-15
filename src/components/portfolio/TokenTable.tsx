@@ -288,10 +288,10 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                             network={token.network}
                           />
                         )}
-                        <div className="flex flex-col gap-0.5">
-                          <p className="font-semibold text-base text-foreground">{token.symbol}</p>
-                          <p className="text-xs font-medium" style={{ color: 'hsl(var(--muted-foreground))' }}>
-                            {token.network || 'No network'}
+                        <div className="flex flex-col gap-1">
+                          <p className="font-semibold text-base">{token.symbol}</p>
+                          <p className="text-xs font-semibold text-foreground/70">
+                            {token.network}
                           </p>
                         </div>
                       </div>
