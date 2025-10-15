@@ -31,8 +31,30 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
     const fetchMoralisLogo = async () => {
       if (!address || !network || !imageError || fallbackSrc) return;
       
-      // Skip native tokens (zero address)
-      if (address === '0x0000000000000000000000000000000000000000') return;
+      const networkLower = (network || '').toLowerCase();
+      
+      // Hardcoded fallbacks for Mantle tokens (Moralis doesn't support Mantle yet)
+      if (networkLower.includes('mantle') && address) {
+        const mantleTokenLogos: { [key: string]: string } = {
+          '0x78c1b0c915c4faa5fffa6cabf0219da63d7f4cb8': 'https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png', // WMNT
+          '0x09bc4e0d864854c6afb6eb9a9cdf58ac190d0df9': 'https://assets.coingecko.com/coins/images/6319/small/usdc.png', // USDC
+          '0xdeaddeaddeaddeaddeaddeaddeaddeaddead1111': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png', // WETH
+          '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000': 'https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png', // MNT (native)
+        };
+        
+        const logo = mantleTokenLogos[address.toLowerCase()];
+        if (logo) {
+          console.log(`Using hardcoded logo for Mantle ${symbol}: ${logo}`);
+          setFallbackSrc(logo);
+          setImageError(false);
+          setIsLoading(true);
+          return;
+        }
+      }
+      
+      // Skip native tokens (zero address or dead addresses) for other networks
+      if (address === '0x0000000000000000000000000000000000000000' || 
+          address?.toLowerCase().includes('dead')) return;
       
       // Map network to Moralis chain ID
       const networkToMoralis: { [key: string]: string } = {
@@ -46,10 +68,8 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
         'op mainnet': '0xa',
         'base': '0x2105',
         'fantom': '0xfa',
-        'mantle': '0x1388',
       };
       
-      const networkLower = (network || '').toLowerCase();
       const chainId = Object.entries(networkToMoralis).find(([key]) => 
         networkLower.includes(key)
       )?.[1];
