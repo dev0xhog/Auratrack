@@ -94,6 +94,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
       'arbitrum': 'arbitrum',
       'base': 'base',
       'fantom': 'fantom',
+      'mantle': 'mantle',
       'linea': 'linea',
       'scroll': 'scroll',
       'zksync': 'zksync',
