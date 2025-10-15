@@ -73,13 +73,22 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     
     // Try direct match first from API
     let price = priceData?.[symbol.toUpperCase()];
-    if (price) return price;
+    if (price) {
+      // Add logo from TrustWallet assets
+      price.logo = getTokenLogo(symbol, network);
+      return price;
+    }
     
     // Try wrapped token variations
     if (symbol === 'WETH') price = priceData?.['ETH'];
     if (symbol === 'WMATIC') price = priceData?.['MATIC'];
     if (symbol === 'WBNB') price = priceData?.['BNB'];
     if (symbol === 'WAVAX') price = priceData?.['AVAX'];
+    
+    if (price) {
+      price.logo = getTokenLogo(symbol, network);
+      return price;
+    }
     
     // If still no price but we have balance data, calculate the price
     if (!price && balance > 0 && balanceUSD > 0) {
@@ -90,10 +99,32 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
         name: symbol,
         current_price: calculatedPrice,
         price_change_percentage_24h: 0, // Can't calculate without historical data
+        logo: getTokenLogo(symbol, network),
       };
     }
     
     return price;
+  };
+
+  // Get token logo from TrustWallet assets or use token-specific CDNs
+  const getTokenLogo = (symbol: string, network: string): string | undefined => {
+    const symbolUpper = symbol.toUpperCase();
+    
+    // Map for well-known token logos
+    const tokenLogos: { [key: string]: string } = {
+      'ETH': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png',
+      'WETH': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+      'USDT': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
+      'USDC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',
+      'BTC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/bitcoin/info/logo.png',
+      'BNB': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/binance/info/logo.png',
+      'MATIC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png',
+      'POL': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png',
+      'AVAX': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchec/info/logo.png',
+      'DAI': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png',
+    };
+    
+    return tokenLogos[symbolUpper];
   };
 
   const handleSort = (field: SortField) => {

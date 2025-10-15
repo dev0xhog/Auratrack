@@ -80,19 +80,16 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
 
       const result: { [symbol: string]: TokenPrice } = {};
 
-      // Use CoinCap API as fallback (more reliable, no rate limits on basic tier)
-      const nativeTokenSymbols = tokens
-        .filter(t => !t.address && symbolToGeckoId[t.symbol.toUpperCase()])
-        .map(t => t.symbol.toUpperCase());
-
-      const uniqueSymbols = [...new Set(nativeTokenSymbols)];
+      // Get all unique CoinGecko IDs for native tokens
+      const nativeTokens = tokens.filter(t => !t.address && symbolToGeckoId[t.symbol.toUpperCase()]);
+      const uniqueIds = [...new Set(nativeTokens.map(t => symbolToGeckoId[t.symbol.toUpperCase()]))];
       
-      if (uniqueSymbols.length > 0) {
+      if (uniqueIds.length > 0) {
         try {
-          // Fetch prices from CoinCap (more reliable)
-          const symbolsParam = uniqueSymbols.join(',');
+          // Use CoinGecko simple/price endpoint (more reliable than markets)
+          const idsParam = uniqueIds.join(',');
           const response = await fetch(
-            `https://api.coincap.io/v2/assets?ids=${uniqueSymbols.map(s => symbolToGeckoId[s] || s.toLowerCase()).join(',')}`,
+            `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`,
             {
               headers: {
                 'Accept': 'application/json'
@@ -103,26 +100,24 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
           if (response.ok) {
             const data = await response.json();
             
-            if (data.data) {
-              data.data.forEach((coin: any) => {
-                const symbol = coin.symbol.toUpperCase();
+            // Map the response back to symbols
+            Object.entries(symbolToGeckoId).forEach(([symbol, geckoId]) => {
+              if (data[geckoId]) {
                 result[symbol] = {
-                  id: coin.id,
+                  id: geckoId,
                   symbol: symbol,
-                  name: coin.name,
-                  current_price: parseFloat(coin.priceUsd) || 0,
-                  price_change_percentage_24h: parseFloat(coin.changePercent24Hr) || 0,
-                  logo: `https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`,
+                  name: symbol,
+                  current_price: data[geckoId].usd || 0,
+                  price_change_percentage_24h: data[geckoId].usd_24h_change || 0,
+                  logo: `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png`,
                 };
-              });
-              
-              console.log('Token prices fetched from CoinCap:', data.data.length);
-            }
-          } else {
-            console.error('CoinCap API error:', response.status);
+              }
+            });
+            
+            console.log('Native token prices fetched:', Object.keys(result).length);
           }
         } catch (error) {
-          console.error("CoinCap API error:", error);
+          console.error("CoinGecko API error:", error);
         }
       }
 
