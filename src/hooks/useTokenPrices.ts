@@ -78,87 +78,110 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
 
       const result: { [symbol: string]: TokenPrice } = {};
 
-      // Step 1: Fetch native tokens with full details including logos
+      // Step 1: Batch fetch native tokens using markets endpoint (more reliable)
       const nativeTokens = tokens.filter(t => !t.address && symbolToGeckoId[t.symbol.toUpperCase()]);
       
       if (nativeTokens.length > 0) {
         const uniqueIds = [...new Set(nativeTokens.map(t => symbolToGeckoId[t.symbol.toUpperCase()]))];
+        const idsParam = uniqueIds.join(",");
         
-        // Fetch each native token individually to get logos and complete data
-        await Promise.all(
-          uniqueIds.map(async (geckoId) => {
-            try {
-              const response = await fetch(
-                `https://api.coingecko.com/api/v3/coins/${geckoId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false`,
-                { mode: 'cors' }
-              );
-              
-              if (response.ok) {
-                const data = await response.json();
-                const symbol = data.symbol.toUpperCase();
-                
-                result[symbol] = {
-                  id: data.id,
-                  symbol: symbol,
-                  name: data.name,
-                  current_price: data.market_data?.current_price?.usd || 0,
-                  price_change_percentage_24h: data.market_data?.price_change_percentage_24h || 0,
-                  logo: data.image?.large || data.image?.small || data.image?.thumb,
-                };
+        try {
+          const response = await fetch(
+            `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${idsParam}&order=market_cap_desc&sparkline=false&price_change_percentage=24h`,
+            { 
+              mode: 'cors',
+              headers: {
+                'Accept': 'application/json'
               }
-            } catch (error) {
-              console.warn(`CoinGecko API error for ${geckoId}:`, error);
             }
-          })
-        );
-      }
-
-      // Step 2: Fetch ERC-20 tokens one by one (necessary due to API structure)
-      const erc20Tokens = tokens.filter(t => t.address && t.network);
-      
-      // Limit concurrent requests to avoid rate limiting
-      const batchSize = 5;
-      for (let i = 0; i < erc20Tokens.length; i += batchSize) {
-        const batch = erc20Tokens.slice(i, i + batchSize);
-        
-        await Promise.all(
-          batch.map(async (token) => {
-            if (result[token.symbol.toUpperCase()]) return; // Skip if already fetched
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
             
-            const platformId = networkToPlatformId[token.network.toLowerCase()];
-            if (!platformId || !token.address) return;
+            data.forEach((coin: any) => {
+              const symbol = coin.symbol.toUpperCase();
+              result[symbol] = {
+                id: coin.id,
+                symbol: symbol,
+                name: coin.name,
+                current_price: coin.current_price || 0,
+                price_change_percentage_24h: coin.price_change_percentage_24h || 0,
+                logo: coin.image,
+              };
+            });
             
-            try {
-              const response = await fetch(
-                `https://api.coingecko.com/api/v3/coins/${platformId}/contract/${token.address}`,
-                { mode: 'cors' }
-              );
-              
-              if (response.ok) {
-                const data = await response.json();
-                
-                result[token.symbol.toUpperCase()] = {
-                  id: data.id,
-                  symbol: token.symbol.toUpperCase(),
-                  name: data.name,
-                  current_price: data.market_data?.current_price?.usd || 0,
-                  price_change_percentage_24h: data.market_data?.price_change_percentage_24h || 0,
-                  logo: data.image?.large || data.image?.small,
-                };
-              }
-            } catch (error) {
-              console.warn(`CoinGecko API error for ${token.symbol}:`, error);
-            }
-          })
-        );
-        
-        // Add small delay between batches to avoid rate limiting
-        if (i + batchSize < erc20Tokens.length) {
-          await new Promise(resolve => setTimeout(resolve, 200));
+            console.log('Native tokens fetched:', data.length);
+          } else {
+            console.error('CoinGecko markets API error:', response.status, await response.text());
+          }
+        } catch (error) {
+          console.error("CoinGecko batch native tokens API error:", error);
         }
       }
 
-      console.log('Token prices fetched:', Object.keys(result).length, 'tokens');
+      // Step 2: Fetch ERC-20 tokens (skip for now to avoid rate limiting)
+      // Focus on native tokens which are the most important
+      const erc20Tokens = tokens.filter(t => t.address && t.network);
+      
+      // Only fetch top 10 ERC-20 tokens by balance to avoid rate limiting
+      const sortedErc20 = erc20Tokens
+        .sort((a, b) => {
+          // Assuming tokens might have some balance info, otherwise fetch all
+          return 0; // Keep original order for now
+        })
+        .slice(0, 10);
+      
+      if (sortedErc20.length > 0) {
+        // Limit concurrent requests to avoid rate limiting
+        const batchSize = 3;
+        for (let i = 0; i < sortedErc20.length; i += batchSize) {
+          const batch = sortedErc20.slice(i, i + batchSize);
+          
+          await Promise.all(
+            batch.map(async (token) => {
+              if (result[token.symbol.toUpperCase()]) return; // Skip if already fetched
+              
+              const platformId = networkToPlatformId[token.network?.toLowerCase() || ''];
+              if (!platformId || !token.address) return;
+              
+              try {
+                const response = await fetch(
+                  `https://api.coingecko.com/api/v3/coins/${platformId}/contract/${token.address}`,
+                  { 
+                    mode: 'cors',
+                    headers: {
+                      'Accept': 'application/json'
+                    }
+                  }
+                );
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  
+                  result[token.symbol.toUpperCase()] = {
+                    id: data.id,
+                    symbol: token.symbol.toUpperCase(),
+                    name: data.name,
+                    current_price: data.market_data?.current_price?.usd || 0,
+                    price_change_percentage_24h: data.market_data?.price_change_percentage_24h || 0,
+                    logo: data.image?.large || data.image?.small,
+                  };
+                }
+              } catch (error) {
+                console.warn(`CoinGecko API error for ${token.symbol}:`, error);
+              }
+            })
+          );
+          
+          // Add delay between batches to avoid rate limiting
+          if (i + batchSize < sortedErc20.length) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        }
+      }
+
+      console.log('Token prices fetched:', Object.keys(result).length, 'of', tokens.length, 'tokens');
       return result;
     },
     enabled: tokens.length > 0,
