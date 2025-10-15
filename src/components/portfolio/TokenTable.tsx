@@ -137,6 +137,17 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
   const filteredAndSortedTokens = useMemo(() => {
     let result = [...tokens];
 
+    // Remove duplicate tokens (same symbol on same network), keep the one with highest balance
+    const tokenMap = new Map<string, Token>();
+    result.forEach(token => {
+      const key = `${token.symbol}-${token.network}`;
+      const existing = tokenMap.get(key);
+      if (!existing || token.balanceUSD > existing.balanceUSD) {
+        tokenMap.set(key, token);
+      }
+    });
+    result = Array.from(tokenMap.values());
+
     // Filter by search query
     if (searchQuery) {
       result = result.filter(
