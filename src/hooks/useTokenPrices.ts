@@ -9,10 +9,6 @@ interface TokenPrice {
   name?: string;
 }
 
-interface CoinGeckoResponse {
-  [key: string]: TokenPrice;
-}
-
 interface TokenInfo {
   symbol: string;
   address?: string;
@@ -21,55 +17,20 @@ interface TokenInfo {
   balanceUSD?: number;
 }
 
-// Map common token symbols to CoinGecko IDs
-const symbolToGeckoId: { [key: string]: string } = {
-  ETH: "ethereum",
-  WETH: "weth",
-  BTC: "bitcoin",
-  WBTC: "wrapped-bitcoin",
-  USDT: "tether",
-  USDC: "usd-coin",
-  DAI: "dai",
-  MATIC: "matic-network",
-  BNB: "binancecoin",
-  AVAX: "avalanche-2",
-  FTM: "fantom",
-  OP: "optimism",
-  ARB: "arbitrum",
-  LINK: "chainlink",
-  UNI: "uniswap",
-  AAVE: "aave",
-  CRV: "curve-dao-token",
-  SNX: "havven",
-  MKR: "maker",
-  COMP: "compound-governance-token",
-  SUSHI: "sushi",
-  YFI: "yearn-finance",
-  BAL: "balancer",
-  GNO: "gnosis",
-  LDO: "lido-dao",
-  FRAX: "frax",
-  FXS: "frax-share",
-  CVX: "convex-finance",
-  STG: "stargate-finance",
-  GMX: "gmx",
-  RDNT: "radiant-capital",
-  USDD: "usdd",
-  TUSD: "true-usd",
-  BUSD: "binance-usd",
-};
-
-// Map network names to CoinGecko platform IDs
-const networkToPlatformId: { [key: string]: string } = {
-  ethereum: "ethereum",
-  polygon: "polygon-pos",
-  bsc: "binance-smart-chain",
-  binance: "binance-smart-chain",
-  avalanche: "avalanche",
-  fantom: "fantom",
-  arbitrum: "arbitrum-one",
-  optimism: "optimistic-ethereum",
-  base: "base",
+// Map network names to Moralis chain IDs
+const networkToMoralisChain: { [key: string]: string } = {
+  'ethereum': '0x1',
+  'polygon': '0x89',
+  'bsc': '0x38',
+  'binance': '0x38',
+  'avalanche': '0xa86a',
+  'arbitrum': '0xa4b1',
+  'optimism': '0xa',
+  'op mainnet': '0xa',
+  'base': '0x2105',
+  'fantom': '0xfa',
+  'mantle': '0x1388',
+  'linea': '0xe708',
 };
 
 export const useTokenPrices = (tokens: TokenInfo[]) => {
@@ -78,58 +39,12 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
     queryFn: async () => {
       if (!tokens || tokens.length === 0) return {};
 
+      const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
       const result: { [symbol: string]: TokenPrice } = {};
 
-      // Separate native tokens and ERC-20 tokens
-      const nativeTokens = tokens.filter(t => 
-        (!t.address || t.address === '0x0000000000000000000000000000000000000000') && 
-        symbolToGeckoId[t.symbol.toUpperCase()]
-      );
-      const erc20Tokens = tokens.filter(t => 
-        t.address && 
-        t.address !== '0x0000000000000000000000000000000000000000'
-      );
-
-      // Fetch native token prices
-      const uniqueIds = [...new Set(nativeTokens.map(t => symbolToGeckoId[t.symbol.toUpperCase()]))];
-      
-      if (uniqueIds.length > 0) {
-        try {
-          const idsParam = uniqueIds.join(',');
-          const response = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`,
-            {
-              headers: {
-                'Accept': 'application/json'
-              }
-            }
-          );
-          
-          if (response.ok) {
-            const data = await response.json();
-            
-            // Map the response back to symbols
-            Object.entries(symbolToGeckoId).forEach(([symbol, geckoId]) => {
-              if (data[geckoId]) {
-                result[symbol] = {
-                  id: geckoId,
-                  symbol: symbol,
-                  name: symbol,
-                  current_price: data[geckoId].usd || 0,
-                  price_change_percentage_24h: data[geckoId].usd_24h_change || 0,
-                };
-              }
-            });
-          }
-        } catch (error) {
-          console.error("CoinGecko native token API error:", error);
-        }
-      }
-
-      // Fetch ERC-20 token prices by contract address
-      // Group tokens by network for batch fetching
+      // Group tokens by network
       const tokensByNetwork: { [network: string]: TokenInfo[] } = {};
-      erc20Tokens.forEach(token => {
+      tokens.forEach(token => {
         const network = (token.network || '').toLowerCase();
         if (!tokensByNetwork[network]) {
           tokensByNetwork[network] = [];
@@ -139,57 +54,103 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
 
       // Fetch prices for each network
       for (const [network, networkTokens] of Object.entries(tokensByNetwork)) {
-        const platformId = Object.entries(networkToPlatformId).find(([key]) => 
+        const chainId = Object.entries(networkToMoralisChain).find(([key]) => 
           network.includes(key)
         )?.[1];
 
-        if (platformId && networkTokens.length > 0) {
-          // Batch requests in groups of 30 addresses (CoinGecko limit)
-          const batchSize = 30;
-          for (let i = 0; i < networkTokens.length; i += batchSize) {
-            const batch = networkTokens.slice(i, i + batchSize);
-            const addresses = batch.map(t => t.address).join(',');
+        if (!chainId) {
+          console.log(`No Moralis chain ID found for network: ${network}`);
+          continue;
+        }
+
+        // Process tokens in batches (Moralis supports multiple addresses)
+        const batchSize = 25;
+        for (let i = 0; i < networkTokens.length; i += batchSize) {
+          const batch = networkTokens.slice(i, i + batchSize);
+          
+          // Separate native tokens and ERC-20 tokens
+          const nativeToken = batch.find(t => !t.address || t.address === '0x0000000000000000000000000000000000000000');
+          const erc20Tokens = batch.filter(t => t.address && t.address !== '0x0000000000000000000000000000000000000000');
+
+          // Fetch native token price if present
+          if (nativeToken) {
+            try {
+              const response = await fetch(
+                `https://deep-index.moralis.io/api/v2.2/erc20/0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE/price?chain=${chainId}`,
+                {
+                  headers: {
+                    "X-API-Key": apiKey,
+                  },
+                }
+              );
+
+              if (response.ok) {
+                const data = await response.json();
+                result[nativeToken.symbol.toUpperCase()] = {
+                  id: 'native',
+                  symbol: nativeToken.symbol.toUpperCase(),
+                  name: nativeToken.symbol,
+                  current_price: data.usdPrice || 0,
+                  price_change_percentage_24h: data.usdPriceFormatted ? parseFloat(data['24hrPercentChange'] || '0') : 0,
+                };
+              }
+            } catch (error) {
+              console.error(`Moralis native token price error for ${network}:`, error);
+            }
+          }
+
+          // Fetch ERC-20 token prices
+          if (erc20Tokens.length > 0) {
+            const addresses = erc20Tokens.map(t => t.address).filter(Boolean).join(',');
             
             try {
               const response = await fetch(
-                `https://api.coingecko.com/api/v3/simple/token_price/${platformId}?contract_addresses=${addresses}&vs_currencies=usd&include_24hr_change=true`,
+                `https://deep-index.moralis.io/api/v2.2/erc20/prices?chain=${chainId}&include=percent_change`,
                 {
+                  method: 'POST',
                   headers: {
-                    'Accept': 'application/json'
-                  }
+                    "X-API-Key": apiKey,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    tokens: erc20Tokens.map(t => ({ token_address: t.address }))
+                  })
                 }
               );
-              
+
               if (response.ok) {
                 const data = await response.json();
                 
                 // Map response back to token symbols
-                batch.forEach(token => {
-                  const addressLower = token.address?.toLowerCase();
-                  if (addressLower && data[addressLower]) {
+                erc20Tokens.forEach(token => {
+                  const priceData = data.find((d: any) => 
+                    d.tokenAddress?.toLowerCase() === token.address?.toLowerCase()
+                  );
+                  
+                  if (priceData) {
                     result[token.symbol.toUpperCase()] = {
-                      id: addressLower,
+                      id: token.address?.toLowerCase() || '',
                       symbol: token.symbol.toUpperCase(),
-                      name: token.symbol,
-                      current_price: data[addressLower].usd || 0,
-                      price_change_percentage_24h: data[addressLower].usd_24h_change || 0,
+                      name: priceData.tokenName || token.symbol,
+                      current_price: priceData.usdPrice || 0,
+                      price_change_percentage_24h: parseFloat(priceData['24hrPercentChange'] || '0'),
                     };
                   }
                 });
               }
             } catch (error) {
-              console.error(`CoinGecko ERC-20 token API error for ${platformId}:`, error);
+              console.error(`Moralis ERC-20 token prices error for ${network}:`, error);
             }
           }
         }
       }
 
-      console.log('Token prices fetched:', Object.keys(result).length, 'of', tokens.length, 'tokens');
+      console.log('Token prices fetched via Moralis:', Object.keys(result).length, 'of', tokens.length, 'tokens');
       return result;
     },
     enabled: tokens.length > 0,
     staleTime: 60000, // 1 minute
-    retry: 1,
+    retry: 2,
   });
 };
 
