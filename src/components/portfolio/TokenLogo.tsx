@@ -29,7 +29,10 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
   // Try to fetch logo from Moralis when TrustWallet fails
   useEffect(() => {
     const fetchMoralisLogo = async () => {
-      if (!address || !network || !imageError) return;
+      if (!address || !network || !imageError || fallbackSrc) return;
+      
+      // Skip native tokens (zero address)
+      if (address === '0x0000000000000000000000000000000000000000') return;
       
       // Map network to Moralis chain ID
       const networkToMoralis: { [key: string]: string } = {
@@ -40,6 +43,7 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
         'avalanche': '0xa86a',
         'arbitrum': '0xa4b1',
         'optimism': '0xa',
+        'op mainnet': '0xa',
         'base': '0x2105',
         'fantom': '0xfa',
         'mantle': '0x1388',
@@ -50,10 +54,14 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
         networkLower.includes(key)
       )?.[1];
       
-      if (!chainId) return;
+      if (!chainId) {
+        console.log(`No Moralis chain ID found for network: ${network}`);
+        return;
+      }
       
       try {
         const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
+        console.log(`Fetching Moralis logo for ${symbol} (${address}) on chain ${chainId}`);
         const response = await fetch(
           `https://deep-index.moralis.io/api/v2.2/erc20/metadata?chain=${chainId}&addresses=${address}`,
           {
@@ -65,18 +73,25 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
         
         if (response.ok) {
           const data = await response.json();
-          if (data?.[0]?.logo) {
+          console.log(`Moralis response for ${symbol}:`, data);
+          if (data && Array.isArray(data) && data.length > 0 && data[0]?.logo) {
+            console.log(`Found Moralis logo for ${symbol}: ${data[0].logo}`);
             setFallbackSrc(data[0].logo);
             setImageError(false);
+            setIsLoading(true); // Reset loading state to load new image
+          } else {
+            console.log(`No logo in Moralis response for ${symbol}`);
           }
+        } else {
+          console.error(`Moralis API error for ${symbol}: ${response.status}`);
         }
       } catch (error) {
-        console.error("Failed to fetch Moralis logo:", error);
+        console.error(`Failed to fetch Moralis logo for ${symbol}:`, error);
       }
     };
     
     fetchMoralisLogo();
-  }, [address, network, imageError]);
+  }, [address, network, imageError, fallbackSrc, symbol]);
 
   const logoSrc = fallbackSrc || src;
 

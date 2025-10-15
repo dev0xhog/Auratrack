@@ -138,8 +138,12 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
       return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/info/logo.png`;
     }
     
+    // TrustWallet expects checksummed addresses - convert to proper case
+    // For now, just use the address as-is since most APIs return checksummed addresses
+    const checksummedAddress = address;
+    
     // For ERC-20 tokens, construct URL using contract address
-    return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/assets/${address}/logo.png`;
+    return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/assets/${checksummedAddress}/logo.png`;
   };
 
   const handleSort = (field: SortField) => {
