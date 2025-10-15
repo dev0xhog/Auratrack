@@ -144,7 +144,7 @@ const fetchNFTsForChain = async (
     if (data.ownedNfts && data.ownedNfts.length > 0) {
       return data.ownedNfts
         .map((nft: AlchemyNFT) => convertAlchemyToMoralisFormat(nft))
-        .filter((nft: MoralisNFT) => !nft.possible_spam);
+        .filter((nft: MoralisNFT) => !nft.possible_spam && nft.verified_collection);
     }
 
     return [];
