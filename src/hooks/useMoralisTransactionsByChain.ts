@@ -13,84 +13,145 @@ interface MoralisTransaction {
   chain: string;
 }
 
-interface MoralisTransactionsResponse {
-  result: MoralisTransaction[];
-  cursor?: string;
+interface AlchemyAssetTransfer {
+  uniqueId: string;
+  category: string;
+  blockNum: string;
+  from: string;
+  to: string | null;
+  value: number | null;
+  asset: string | null;
+  hash: string;
+  rawContract: {
+    value: string;
+    address: string | null;
+    decimal: string | null;
+  };
+  metadata: {
+    blockTimestamp: string;
+  };
 }
 
-// Supported EVM chains for multi-chain transaction fetching
+interface AlchemyTransfersResponse {
+  transfers: AlchemyAssetTransfer[];
+  pageKey?: string;
+}
+
+// Alchemy chain identifiers for transaction fetching
 const SUPPORTED_CHAINS = [
-  "eth",      // Ethereum
-  "polygon",  // Polygon
-  "bsc",      // Binance Smart Chain
-  "avalanche", // Avalanche
-  "fantom",   // Fantom
-  "arbitrum", // Arbitrum
-  "optimism", // Optimism
-  "base",     // Base
+  { id: "eth-mainnet", name: "eth" },
+  { id: "polygon-mainnet", name: "polygon" },
+  { id: "arb-mainnet", name: "arbitrum" },
+  { id: "opt-mainnet", name: "optimism" },
+  { id: "base-mainnet", name: "base" },
+  { id: "linea-mainnet", name: "linea" },
+  { id: "scroll-mainnet", name: "scroll" },
+  { id: "shape-mainnet", name: "shape" },
+  { id: "arb-nova-mainnet", name: "arbitrum-nova" },
 ];
+
+// Helper to fetch all transactions with pagination
+const fetchAllTransactionsForChain = async (
+  chain: { id: string; name: string },
+  address: string,
+  apiKey: string
+): Promise<MoralisTransaction[]> => {
+  const allTransactions: MoralisTransaction[] = [];
+  let pageKey: string | undefined;
+  let hasMore = true;
+  const maxPages = 3; // Limit to 3 pages per chain to avoid long load times
+  let pageCount = 0;
+
+  while (hasMore && pageCount < maxPages) {
+    try {
+      const response = await fetch(
+        `https://${chain.id}.g.alchemy.com/v2/${apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "alchemy_getAssetTransfers",
+            params: [
+              {
+                fromAddress: address,
+                category: ["external", "internal"],
+                maxCount: "0x64", // 100 transactions
+                order: "desc",
+                withMetadata: true,
+                excludeZeroValue: false,
+                ...(pageKey && { pageKey }),
+              },
+            ],
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        console.warn(`Failed to fetch transactions from ${chain.name}: ${response.status}`);
+        break;
+      }
+
+      const data = await response.json();
+      const result: AlchemyTransfersResponse = data.result;
+
+      if (result.transfers && result.transfers.length > 0) {
+        const transactions = result.transfers.map((transfer) => ({
+          hash: transfer.hash,
+          from_address: transfer.from,
+          to_address: transfer.to || "",
+          value: transfer.rawContract.value || "0",
+          block_timestamp: transfer.metadata.blockTimestamp,
+          block_number: transfer.blockNum,
+          gas: "0",
+          gas_price: "0",
+          receipt_status: "1",
+          chain: chain.name,
+        }));
+
+        allTransactions.push(...transactions);
+      }
+
+      pageKey = result.pageKey;
+      hasMore = !!pageKey;
+      pageCount++;
+    } catch (error) {
+      console.warn(`Error fetching transactions from ${chain.name}:`, error);
+      break;
+    }
+  }
+
+  return allTransactions;
+};
 
 export const useMoralisTransactionsByChain = (address: string | undefined) => {
   return useQuery<{ [chain: string]: MoralisTransaction[] }>({
-    queryKey: ["moralis-transactions-multi-chain", address],
+    queryKey: ["alchemy-transactions-multi-chain", address],
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
-      
-      const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
-      
-      // Fetch transactions sequentially with delay to avoid rate limiting
-      const results: Array<{ chain: string; transactions: MoralisTransaction[] }> = [];
-      
-      for (let i = 0; i < SUPPORTED_CHAINS.length; i++) {
-        const chain = SUPPORTED_CHAINS[i];
-        
-        try {
-          // Add delay between requests (except first one)
-          if (i > 0) {
-            await new Promise(resolve => setTimeout(resolve, 300));
+
+      const apiKey = import.meta.env.VITE_ALCHEMY_API_KEY || "Y6xWxPYl6VWoSXskte0gPJL1oDe9m9kS";
+      const results: { [chain: string]: MoralisTransaction[] } = {};
+
+      // Fetch transactions from all supported chains in parallel
+      await Promise.all(
+        SUPPORTED_CHAINS.map(async (chain) => {
+          const transactions = await fetchAllTransactionsForChain(chain, address, apiKey);
+          if (transactions.length > 0) {
+            results[chain.name] = transactions;
           }
-          
-          const response = await fetch(
-            `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain}&limit=20`,
-            {
-              headers: {
-                "X-API-Key": apiKey,
-              },
-            }
-          );
-          
-          if (!response.ok) {
-            console.warn(`Failed to fetch transactions for ${chain}: ${response.status}`);
-            results.push({ chain, transactions: [] });
-            continue;
-          }
-          
-          const data: MoralisTransactionsResponse = await response.json();
-          // Add chain info to each transaction
-          const transactionsWithChain = data.result.map(tx => ({
-            ...tx,
-            chain,
-          }));
-          results.push({ chain, transactions: transactionsWithChain });
-        } catch (error) {
-          console.warn(`Error fetching transactions for ${chain}:`, error);
-          results.push({ chain, transactions: [] });
-        }
-      }
-      
-      // Convert to object with chain as key
-      const transactionsByChain: { [chain: string]: MoralisTransaction[] } = {};
-      results.forEach(({ chain, transactions }) => {
-        if (transactions.length > 0) {
-          transactionsByChain[chain] = transactions;
-        }
-      });
-      
-      return transactionsByChain;
+        })
+      );
+
+      return results;
     },
     enabled: !!address,
     staleTime: 60000,
     retry: 1,
+    refetchOnWindowFocus: false,
   });
 };
 

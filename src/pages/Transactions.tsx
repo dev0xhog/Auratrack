@@ -126,6 +126,18 @@ const Transactions = () => {
       } else if (chain === "base") {
         key = "ETH-base";
         token = { symbol: "ETH", network: "base" };
+      } else if (chain === "linea") {
+        key = "ETH-linea";
+        token = { symbol: "ETH", network: "linea" };
+      } else if (chain === "scroll") {
+        key = "ETH-scroll";
+        token = { symbol: "ETH", network: "scroll" };
+      } else if (chain === "shape") {
+        key = "ETH-shape";
+        token = { symbol: "ETH", network: "shape" };
+      } else if (chain === "arbitrum-nova") {
+        key = "ETH-arbitrum-nova";
+        token = { symbol: "ETH", network: "arbitrum-nova" };
       } else {
         key = "ETH-ethereum";
         token = { symbol: "ETH", network: "ethereum" };
@@ -165,6 +177,10 @@ const Transactions = () => {
     if (chain === "arbitrum") return "ETH";
     if (chain === "optimism") return "ETH";
     if (chain === "base") return "ETH";
+    if (chain === "linea") return "ETH";
+    if (chain === "scroll") return "ETH";
+    if (chain === "shape") return "ETH";
+    if (chain === "arbitrum-nova") return "ETH";
     return "ETH";
   };
 
@@ -177,6 +193,10 @@ const Transactions = () => {
     if (chain === "arbitrum") return "Arbitrum";
     if (chain === "optimism") return "Optimism";
     if (chain === "base") return "Base";
+    if (chain === "linea") return "Linea";
+    if (chain === "scroll") return "Scroll";
+    if (chain === "shape") return "Shape";
+    if (chain === "arbitrum-nova") return "Arbitrum Nova";
     return chain;
   };
 
@@ -189,6 +209,10 @@ const Transactions = () => {
     if (chain === "arbitrum") return `https://arbiscan.io/tx/${hash}`;
     if (chain === "optimism") return `https://optimistic.etherscan.io/tx/${hash}`;
     if (chain === "base") return `https://basescan.org/tx/${hash}`;
+    if (chain === "linea") return `https://lineascan.build/tx/${hash}`;
+    if (chain === "scroll") return `https://scrollscan.com/tx/${hash}`;
+    if (chain === "shape") return `https://shapescan.xyz/tx/${hash}`;
+    if (chain === "arbitrum-nova") return `https://nova.arbiscan.io/tx/${hash}`;
     return `https://etherscan.io/tx/${hash}`;
   };
 
@@ -323,14 +347,14 @@ const Transactions = () => {
             Failed to load transactions. Please check your connection and try again.
           </p>
           <p className="text-xs text-muted-foreground">
-            Note: Transactions are fetched from 8 networks: Ethereum, Polygon, BSC, Avalanche, Fantom, Arbitrum, Optimism, and Base
+            Note: Transactions are fetched from 9 networks: Ethereum, Polygon, Arbitrum, Optimism, Base, Linea, Scroll, Shape, and Arbitrum Nova
           </p>
         </Card>
       ) : Object.keys(groupedTransactions).length === 0 ? (
         <Card className="p-12 text-center">
           <p className="text-muted-foreground mb-2">No transactions found.</p>
           <p className="text-xs text-muted-foreground">
-            Checked across 8 networks: Ethereum, Polygon, BSC, Avalanche, Fantom, Arbitrum, Optimism, and Base
+            Checked across 9 networks: Ethereum, Polygon, Arbitrum, Optimism, Base, Linea, Scroll, Shape, and Arbitrum Nova
           </p>
         </Card>
       ) : (
