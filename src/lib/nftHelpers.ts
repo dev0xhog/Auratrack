@@ -111,6 +111,17 @@ export const getOpenSeaChain = (chain: string): string => {
     'Optimism': 'optimism',
     'Base': 'base',
     'Fantom': 'fantom',
+    'Polygon zkEVM': 'zkevm',
+    'zkSync': 'zksync',
+    'Blast': 'blast',
+    'Linea': 'linea',
+    'Scroll': 'scroll',
+    'World Chain': 'worldchain',
+    'ApeChain': 'apechain',
+    'Shape': 'shape',
+    'Gnosis': 'gnosis',
+    'Arbitrum Nova': 'arbitrum_nova',
+    'Zora': 'zora',
   };
   return chainMap[chain] || chain.toLowerCase();
 };
