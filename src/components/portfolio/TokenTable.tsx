@@ -30,39 +30,13 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
 
   // Prepare tokens with address and network info for price fetching
   const tokenInfos = useMemo(() => {
-    const infos = tokens.map(token => ({
+    return tokens.map(token => ({
       symbol: token.symbol,
       address: token.address,
       network: token.network,
       balance: token.balance,
       balanceUSD: token.balanceUSD
     }));
-    
-    // Also add network native tokens
-    const nativeTokens = new Set<string>();
-    tokens.forEach(token => {
-      if (token.network) {
-        const network = token.network.toLowerCase();
-        if (network.includes('ethereum') && !nativeTokens.has('ETH')) {
-          infos.push({ symbol: 'ETH', network: 'ethereum', address: undefined, balance: 0, balanceUSD: 0 });
-          nativeTokens.add('ETH');
-        }
-        if (network.includes('polygon') && !nativeTokens.has('MATIC')) {
-          infos.push({ symbol: 'MATIC', network: 'polygon', address: undefined, balance: 0, balanceUSD: 0 });
-          nativeTokens.add('MATIC');
-        }
-        if ((network.includes('bsc') || network.includes('binance')) && !nativeTokens.has('BNB')) {
-          infos.push({ symbol: 'BNB', network: 'bsc', address: undefined, balance: 0, balanceUSD: 0 });
-          nativeTokens.add('BNB');
-        }
-        if (network.includes('avalanche') && !nativeTokens.has('AVAX')) {
-          infos.push({ symbol: 'AVAX', network: 'avalanche', address: undefined, balance: 0, balanceUSD: 0 });
-          nativeTokens.add('AVAX');
-        }
-      }
-    });
-    
-    return infos;
   }, [tokens]);
 
   const { data: priceData, isLoading: isPriceLoading } = useTokenPrices(tokenInfos);
@@ -106,7 +80,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     return price;
   };
 
-  // Get token logo from TrustWallet assets based on contract address
+  // Get token logo from TrustWallet assets or fallback sources
   const getTokenLogo = (symbol: string, network: string, address?: string): string => {
     // Map network names to TrustWallet blockchain identifiers
     const networkToTrustWallet: { [key: string]: string } = {
@@ -120,7 +94,6 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
       'arbitrum': 'arbitrum',
       'base': 'base',
       'fantom': 'fantom',
-      'mantle': 'mantle',
       'linea': 'linea',
       'scroll': 'scroll',
       'zksync': 'zksync',
@@ -131,19 +104,24 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     // Find matching TrustWallet network
     const trustWalletNetwork = Object.entries(networkToTrustWallet).find(([key]) => 
       networkLower.includes(key)
-    )?.[1] || 'ethereum'; // Default to ethereum if no match
+    )?.[1];
     
-    // For native tokens (no address or zero address), use network logo
-    if (!address || address === '0x0000000000000000000000000000000000000000') {
+    // For native tokens or special addresses (dead addresses), use network logo or CoinGecko
+    const isNativeOrSpecial = !address || 
+      address === '0x0000000000000000000000000000000000000000' ||
+      address.toLowerCase().includes('dead');
+    
+    if (isNativeOrSpecial && trustWalletNetwork) {
       return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/info/logo.png`;
     }
     
-    // TrustWallet expects checksummed addresses - convert to proper case
-    // For now, just use the address as-is since most APIs return checksummed addresses
-    const checksummedAddress = address;
+    // For ERC-20 tokens, try TrustWallet first if network is supported
+    if (trustWalletNetwork && address) {
+      return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/assets/${address}/logo.png`;
+    }
     
-    // For ERC-20 tokens, construct URL using contract address
-    return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/assets/${checksummedAddress}/logo.png`;
+    // Fallback: construct a generic placeholder (TokenLogo component will handle Moralis fallback)
+    return '';
   };
 
   const handleSort = (field: SortField) => {
