@@ -35,8 +35,10 @@ export const getImageUrl = (nft: MoralisNFT, gatewayIndex = 0): string | null =>
 };
 
 export const isSpamNFT = (nft: MoralisNFT): boolean => {
-  // Trust Moralis verification first
+  // Always trust verified collections
   if (nft.verified_collection === true) return false;
+  
+  // Trust Moralis spam detection
   if (nft.possible_spam === true) return true;
 
   const metadata = typeof nft.normalized_metadata === 'object' 
@@ -51,52 +53,38 @@ export const isSpamNFT = (nft: MoralisNFT): boolean => {
   const tokenId = nft.token_id || '';
   const symbol = (nft.symbol || '').toLowerCase();
   
-  // Expanded spam keywords (common in removed NFTs)
-  const spamKeywords = [
-    'airdrop', 'claim', 'bonus', 'free', 'reward', 'visit',
-    '.com', '.io', '.xyz', '.net', '$', 'voucher', 'prize',
-    'redeem', 'gift', 'winner', 'congratulations', 'limited',
-    'exclusive offer', 'click here', 'mint now', 'drop',
-    'https://', 'http://', 'www.', 't.me', 'telegram'
+  // High-confidence spam keywords (phishing/scam patterns)
+  const highConfidenceSpam = [
+    'https://', 'http://', 'www.', '.com', '.io', '.xyz',
+    't.me', 'telegram', 'click here', 'visit', 'claim now'
+  ];
+  
+  // Medium-confidence spam keywords
+  const mediumConfidenceSpam = [
+    'airdrop', 'free', 'reward', 'voucher', 'prize', 'winner',
+    'redeem', 'gift', 'bonus', 'congratulations'
   ];
 
-  // Emoji spam indicators (common in phishing NFTs)
-  const spamEmojis = ['🎁', '🎉', '💰', '🚀', '💎', '⚡', '🔥', '🎊', '💵', '💸'];
-  const hasSpamEmoji = spamEmojis.some(emoji => name.includes(emoji) || description.includes(emoji));
+  // Strong indicators - any one of these is likely spam
+  const hasHighConfidenceSpam = highConfidenceSpam.some(
+    keyword => name.includes(keyword) || description.includes(keyword)
+  );
   
-  // Check for suspicious patterns
-  const checks = [
-    // Very high probability spam indicators
-    tokenId.length > 50, // Extremely large token IDs (common in spam)
-    !imageUrl && !name, // No image AND no name
-    !nft.name && !symbol, // No name and no symbol (likely spam mint)
-    hasSpamEmoji, // Contains spam emojis
-    
-    // Medium probability indicators
-    spamKeywords.some(keyword => name.includes(keyword)),
-    spamKeywords.some(keyword => description.includes(keyword)),
-    spamKeywords.some(keyword => symbol.includes(keyword)),
-    
-    // Image-based indicators
-    imageUrl && (
-      imageUrl.includes('data:application') || 
-      imageUrl.includes('base64') ||
-      imageUrl.includes('blob:')
-    ),
-    
-    // Suspicious patterns
-    name.length > 100, // Extremely long names
-    tokenId.length < 5 && parseInt(tokenId) > 100000, // Very high token IDs with short length
-    
-    // Floor price indicators (spam usually has no floor price)
-    !nft.floor_price_usd && !nft.verified_collection && tokenId.length > 30,
+  if (hasHighConfidenceSpam) return true;
+
+  // Check for multiple medium indicators
+  const mediumIndicators = [
+    mediumConfidenceSpam.some(keyword => name.includes(keyword) || description.includes(keyword)),
+    tokenId.length > 60, // Very large token IDs
+    !imageUrl && !name && !symbol, // Complete lack of metadata
+    name.length > 120, // Extremely long names
+    imageUrl && (imageUrl.includes('data:application') || imageUrl.includes('base64')),
   ];
   
-  // Count spam indicators
-  const spamScore = checks.filter(Boolean).length;
+  const mediumScore = mediumIndicators.filter(Boolean).length;
   
-  // Be aggressive: if there's just 1 strong indicator, mark as spam
-  return spamScore >= 1;
+  // Require 2+ medium indicators to mark as spam (more conservative)
+  return mediumScore >= 2;
 };
 
 export const getOpenSeaChain = (chain: string): string => {
