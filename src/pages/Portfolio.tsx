@@ -156,10 +156,18 @@ const Portfolio = () => {
     icon: item.network.iconUrls[0],
   })) || []).sort((a, b) => b.balance - a.balance);
 
-  // Filter tokens by selected network
+  // Filter tokens by selected network and add network name to each token
   const filteredTokens = selectedNetwork
-    ? data?.portfolio.find((p) => p.network.name === selectedNetwork)?.tokens || []
-    : data?.portfolio.flatMap((p) => p.tokens) || [];
+    ? (data?.portfolio.find((p) => p.network.name === selectedNetwork)?.tokens.map(token => ({
+        ...token,
+        network: data.portfolio.find((p) => p.network.name === selectedNetwork)!.network.name
+      })) || [])
+    : (data?.portfolio.flatMap((p) => 
+        p.tokens.map(token => ({
+          ...token,
+          network: p.network.name
+        }))
+      ) || []);
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">

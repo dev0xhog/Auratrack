@@ -270,8 +270,6 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
               filteredAndSortedTokens.map((token, index) => {
                 const tokenPrice = getTokenPrice(token.symbol, token.network, token.balance, token.balanceUSD, token.address);
                 const currentPrice = tokenPrice?.current_price;
-                
-                console.log('Token network:', token.symbol, token.network);
 
                 return (
                   <TableRow key={`${token.address}-${index}`} className="hover:bg-muted/50">
