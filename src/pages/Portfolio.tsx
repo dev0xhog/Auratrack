@@ -4,10 +4,11 @@ import { TokenTable } from "@/components/portfolio/TokenTable";
 import { PortfolioChart } from "@/components/portfolio/PortfolioChart";
 import { Wallet, TrendingUp, PieChart, DollarSign } from "lucide-react";
 import { usePortfolioBalances } from "@/hooks/usePortfolioBalances";
+import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams } from "react-router-dom";
 import { formatUSD } from "@/lib/formatters";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 
 const Portfolio = () => {
@@ -16,11 +17,51 @@ const Portfolio = () => {
   const { data, isLoading, error } = usePortfolioBalances(walletAddress);
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
 
+  // Prepare tokens for price fetching
+  const allTokens = useMemo(() => 
+    data?.portfolio.flatMap(p => p.tokens) || [], 
+    [data]
+  );
+
+  const tokenInfos = useMemo(() => 
+    allTokens.map(token => ({
+      symbol: token.symbol,
+      address: token.address,
+      network: token.network,
+      balance: token.balance,
+      balanceUSD: token.balanceUSD
+    })),
+    [allTokens]
+  );
+
+  const { data: priceData } = useTokenPrices(tokenInfos);
+
   // Calculate total portfolio value
   const totalValue = data?.portfolio.reduce(
     (sum, item) => sum + item.tokens.reduce((tokenSum, token) => tokenSum + token.balanceUSD, 0),
     0
   ) || 0;
+
+  // Calculate 24hr change for total portfolio
+  const portfolio24hrChange = useMemo(() => {
+    if (!priceData || !allTokens.length) return { change: 0, changePercent: 0 };
+
+    let totalChange = 0;
+    allTokens.forEach(token => {
+      const tokenPrice = priceData[token.symbol.toUpperCase()];
+      if (tokenPrice && tokenPrice.price_change_percentage_24h) {
+        // Calculate what this token was worth 24h ago
+        const currentValue = token.balanceUSD;
+        const priceChange = tokenPrice.price_change_percentage_24h;
+        // value24hAgo = currentValue / (1 + priceChange/100)
+        const value24hAgo = currentValue / (1 + priceChange / 100);
+        totalChange += (currentValue - value24hAgo);
+      }
+    });
+
+    const changePercent = totalValue > 0 ? (totalChange / totalValue) * 100 : 0;
+    return { change: totalChange, changePercent };
+  }, [priceData, allTokens, totalValue]);
 
   // Count total tokens
   const totalAssets = data?.portfolio.reduce((count, item) => count + item.tokens.length, 0) || 0;
@@ -119,6 +160,8 @@ const Portfolio = () => {
               title="Total Portfolio Value"
               value={formatUSD(totalValue)}
               icon={DollarSign}
+              trend={portfolio24hrChange.change}
+              trendPercentage={portfolio24hrChange.changePercent}
             />
             <StatCard
               title="Total Assets"

@@ -20,7 +20,7 @@ interface TokenTableProps {
   tokens: Token[];
 }
 
-type SortField = "symbol" | "balance" | "balanceUSD" | "priceChange";
+type SortField = "symbol" | "balance" | "balanceUSD";
 type SortDirection = "asc" | "desc";
 
 export const TokenTable = ({ tokens }: TokenTableProps) => {
@@ -169,26 +169,19 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
 
     // Sort
     result.sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+      const aValue = a[sortField];
+      const bValue = b[sortField];
 
-      if (sortField === "priceChange") {
-        const aPriceData = getTokenPrice(a.symbol, a.network, a.balance, a.balanceUSD, a.address);
-        const bPriceData = getTokenPrice(b.symbol, b.network, b.balance, b.balanceUSD, b.address);
-        aValue = aPriceData?.price_change_percentage_24h || 0;
-        bValue = bPriceData?.price_change_percentage_24h || 0;
-      } else {
-        aValue = a[sortField];
-        bValue = b[sortField];
-      }
+      let aComp: any = aValue;
+      let bComp: any = bValue;
 
-      if (typeof aValue === "string") aValue = aValue.toLowerCase();
-      if (typeof bValue === "string") bValue = bValue.toLowerCase();
+      if (typeof aComp === "string") aComp = aComp.toLowerCase();
+      if (typeof bComp === "string") bComp = bComp.toLowerCase();
 
       if (sortDirection === "asc") {
-        return aValue > bValue ? 1 : -1;
+        return aComp > bComp ? 1 : -1;
       } else {
-        return aValue < bValue ? 1 : -1;
+        return aComp < bComp ? 1 : -1;
       }
     });
 
@@ -264,33 +257,19 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                   <SortIcon field="balanceUSD" />
                 </Button>
               </TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSort("priceChange")}
-                  className="hover:bg-transparent font-medium"
-                >
-                  24h Change
-                  <SortIcon field="priceChange" />
-                </Button>
-              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredAndSortedTokens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                   No tokens found
                 </TableCell>
               </TableRow>
             ) : (
               filteredAndSortedTokens.map((token, index) => {
                 const tokenPrice = getTokenPrice(token.symbol, token.network, token.balance, token.balanceUSD, token.address);
-                const priceChange = tokenPrice?.price_change_percentage_24h;
                 const currentPrice = tokenPrice?.current_price;
-                const isPositive = priceChange && priceChange > 0;
-                const isNegative = priceChange && priceChange < 0;
 
                 return (
                   <TableRow key={`${token.address}-${index}`} className="hover:bg-muted/50">
@@ -327,23 +306,6 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                     </TableCell>
                     <TableCell className="font-semibold">
                       {formatUSD(token.balanceUSD)}
-                    </TableCell>
-                    <TableCell>
-                      {priceChange !== undefined ? (
-                        <span
-                          className={`font-semibold ${
-                            isPositive
-                              ? "text-green-600 dark:text-green-500"
-                              : isNegative
-                              ? "text-red-600 dark:text-red-500"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {formatPercentage(priceChange)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
                     </TableCell>
                   </TableRow>
                 );
