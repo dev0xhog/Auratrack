@@ -107,13 +107,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
   };
 
   // Get token logo from TrustWallet assets based on contract address
-  const getTokenLogo = (symbol: string, network: string, address?: string): string | undefined => {
-    // Return undefined if network is not provided
-    if (!network) {
-      console.log(`No network for ${symbol}`);
-      return undefined;
-    }
-    
+  const getTokenLogo = (symbol: string, network: string, address?: string): string => {
     // Map network names to TrustWallet blockchain identifiers
     const networkToTrustWallet: { [key: string]: string } = {
       'ethereum': 'ethereum',
@@ -128,29 +122,20 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
       'fantom': 'fantom',
     };
     
-    const networkLower = network.toLowerCase();
+    const networkLower = (network || '').toLowerCase();
     
     // Find matching TrustWallet network
     const trustWalletNetwork = Object.entries(networkToTrustWallet).find(([key]) => 
       networkLower.includes(key)
-    )?.[1];
-    
-    if (!trustWalletNetwork) {
-      console.log(`No TrustWallet network found for ${network} (${symbol})`);
-      return undefined;
-    }
+    )?.[1] || 'ethereum'; // Default to ethereum if no match
     
     // For native tokens (no address or zero address), use network logo
     if (!address || address === '0x0000000000000000000000000000000000000000') {
-      const logoUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/info/logo.png`;
-      console.log(`Native token logo for ${symbol} on ${network}:`, logoUrl);
-      return logoUrl;
+      return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/info/logo.png`;
     }
     
     // For ERC-20 tokens, construct URL using contract address
-    const logoUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/assets/${address}/logo.png`;
-    console.log(`ERC-20 logo for ${symbol} (${address}) on ${network}:`, logoUrl);
-    return logoUrl;
+    return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/assets/${address}/logo.png`;
   };
 
   const handleSort = (field: SortField) => {
