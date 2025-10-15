@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Image, Filter } from "lucide-react";
+import { Image } from "lucide-react";
 import { useMoralisNFTsByChain, type MoralisNFT } from "@/hooks/useMoralisNFTsByChain";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams } from "react-router-dom";
@@ -12,8 +11,6 @@ import { NFTNetworkFilter } from "@/components/nft/NFTNetworkFilter";
 const NFTs = () => {
   const [searchParams] = useSearchParams();
   const walletAddress = searchParams.get("address") || undefined;
-  const [hideSpam, setHideSpam] = useState(true);
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const { data: nftsByChain, isLoading, error } = useMoralisNFTsByChain(walletAddress);
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
 
@@ -26,13 +23,13 @@ const NFTs = () => {
   const networkData = useMemo(() => {
     const data = Object.entries(nftsByChain || {})
       .map(([network, nfts]) => {
-        const displayNfts = hideSpam ? getNonSpamNFTs(nfts) : nfts;
+        const displayNfts = getNonSpamNFTs(nfts);
         return { network, count: displayNfts.length };
       })
-      .filter(item => item.count > 0); // Only show networks with NFTs
+      .filter(item => item.count > 0);
     
     return data.sort((a, b) => b.count - a.count);
-  }, [nftsByChain, hideSpam]);
+  }, [nftsByChain]);
 
   // Filter NFTs with chain info
   const displayNFTs = useMemo(() => {
@@ -42,18 +39,8 @@ const NFTs = () => {
           nfts.map(nft => ({ ...nft, chain }))
         );
     
-    let filtered = nftsWithChain;
-    
-    if (hideSpam) {
-      filtered = filtered.filter(nft => !isSpamNFT(nft));
-    }
-    
-    if (verifiedOnly) {
-      filtered = filtered.filter(nft => nft.verified_collection);
-    }
-    
-    return filtered;
-  }, [nftsByChain, selectedNetwork, hideSpam, verifiedOnly]);
+    return nftsWithChain.filter(nft => !isSpamNFT(nft));
+  }, [nftsByChain, selectedNetwork]);
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -61,22 +48,6 @@ const NFTs = () => {
         <div>
           <h1 className="text-4xl font-bold mb-2">NFT Collection</h1>
           <p className="text-muted-foreground">Your digital art and collectibles</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant={hideSpam ? "default" : "outline"}
-            onClick={() => setHideSpam(!hideSpam)}
-            className="gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            {hideSpam ? "Hide Spam" : "Show All"}
-          </Button>
-          <Button
-            variant={verifiedOnly ? "default" : "outline"}
-            onClick={() => setVerifiedOnly(!verifiedOnly)}
-          >
-            {verifiedOnly ? "✓ Verified" : "All Collections"}
-          </Button>
         </div>
       </div>
 
@@ -131,13 +102,7 @@ const NFTs = () => {
           {displayNFTs.length === 0 ? (
             <Card className="p-12 text-center">
               <Image className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">
-                {verifiedOnly 
-                  ? "No verified NFTs found (try toggling filter)" 
-                  : hideSpam 
-                    ? "No NFTs found (try showing hidden NFTs)" 
-                    : "No NFTs found"}
-              </p>
+              <p className="text-muted-foreground">No NFTs found</p>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

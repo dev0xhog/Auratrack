@@ -91,6 +91,7 @@ const SUPPORTED_CHAINS = [
   { id: "zksync-mainnet", name: "zkSync Era" },
   { id: "avax-mainnet", name: "Avalanche" },
   { id: "bnb-mainnet", name: "BNB Chain" },
+  { id: "hyperliquid-mainnet", name: "Hyperliquid" },
 ];
 
 // Helper to convert Alchemy NFT to our format
