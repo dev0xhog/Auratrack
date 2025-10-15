@@ -33,7 +33,9 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     const infos = tokens.map(token => ({
       symbol: token.symbol,
       address: token.address,
-      network: token.network
+      network: token.network,
+      balance: token.balance,
+      balanceUSD: token.balanceUSD
     }));
     
     // Also add network native tokens
@@ -42,36 +44,20 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
       if (token.network) {
         const network = token.network.toLowerCase();
         if (network.includes('ethereum') && !nativeTokens.has('ETH')) {
-          infos.push({ symbol: 'ETH', network: 'ethereum', address: undefined });
+          infos.push({ symbol: 'ETH', network: 'ethereum', address: undefined, balance: 0, balanceUSD: 0 });
           nativeTokens.add('ETH');
         }
         if (network.includes('polygon') && !nativeTokens.has('MATIC')) {
-          infos.push({ symbol: 'MATIC', network: 'polygon', address: undefined });
+          infos.push({ symbol: 'MATIC', network: 'polygon', address: undefined, balance: 0, balanceUSD: 0 });
           nativeTokens.add('MATIC');
         }
         if ((network.includes('bsc') || network.includes('binance')) && !nativeTokens.has('BNB')) {
-          infos.push({ symbol: 'BNB', network: 'bsc', address: undefined });
+          infos.push({ symbol: 'BNB', network: 'bsc', address: undefined, balance: 0, balanceUSD: 0 });
           nativeTokens.add('BNB');
         }
         if (network.includes('avalanche') && !nativeTokens.has('AVAX')) {
-          infos.push({ symbol: 'AVAX', network: 'avalanche', address: undefined });
+          infos.push({ symbol: 'AVAX', network: 'avalanche', address: undefined, balance: 0, balanceUSD: 0 });
           nativeTokens.add('AVAX');
-        }
-        if (network.includes('fantom') && !nativeTokens.has('FTM')) {
-          infos.push({ symbol: 'FTM', network: 'fantom', address: undefined });
-          nativeTokens.add('FTM');
-        }
-        if (network.includes('arbitrum') && !nativeTokens.has('ARB')) {
-          infos.push({ symbol: 'ARB', network: 'arbitrum', address: undefined });
-          nativeTokens.add('ARB');
-        }
-        if (network.includes('optimism') && !nativeTokens.has('OP')) {
-          infos.push({ symbol: 'OP', network: 'optimism', address: undefined });
-          nativeTokens.add('OP');
-        }
-        if (network.includes('base') && !nativeTokens.has('BASE-ETH')) {
-          infos.push({ symbol: 'ETH', network: 'base', address: undefined });
-          nativeTokens.add('BASE-ETH');
         }
       }
     });
@@ -81,11 +67,11 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
 
   const { data: priceData, isLoading: isPriceLoading } = useTokenPrices(tokenInfos);
   
-  // Create a mapping for common wrapped tokens
-  const getTokenPrice = (symbol: string, network: string) => {
+  // Create a mapping for token prices - use calculated price from balance if API data unavailable
+  const getTokenPrice = (symbol: string, network: string, balance: number, balanceUSD: number) => {
     if (!symbol) return undefined;
     
-    // Try direct match first
+    // Try direct match first from API
     let price = priceData?.[symbol.toUpperCase()];
     if (price) return price;
     
@@ -94,18 +80,17 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     if (symbol === 'WMATIC') price = priceData?.['MATIC'];
     if (symbol === 'WBNB') price = priceData?.['BNB'];
     if (symbol === 'WAVAX') price = priceData?.['AVAX'];
-    if (symbol === 'WFTM') price = priceData?.['FTM'];
     
-    // Try network native token as fallback
-    if (!price && network) {
-      const networkLower = network.toLowerCase();
-      if (networkLower.includes('ethereum')) price = priceData?.['ETH'];
-      if (networkLower.includes('polygon')) price = priceData?.['MATIC'];
-      if (networkLower.includes('bsc')) price = priceData?.['BNB'];
-      if (networkLower.includes('avalanche')) price = priceData?.['AVAX'];
-      if (networkLower.includes('fantom')) price = priceData?.['FTM'];
-      if (networkLower.includes('arbitrum')) price = priceData?.['ARB'];
-      if (networkLower.includes('optimism')) price = priceData?.['OP'];
+    // If still no price but we have balance data, calculate the price
+    if (!price && balance > 0 && balanceUSD > 0) {
+      const calculatedPrice = balanceUSD / balance;
+      return {
+        id: symbol.toLowerCase(),
+        symbol: symbol.toUpperCase(),
+        name: symbol,
+        current_price: calculatedPrice,
+        price_change_percentage_24h: 0, // Can't calculate without historical data
+      };
     }
     
     return price;
@@ -138,8 +123,8 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
       let bValue: any;
 
       if (sortField === "priceChange") {
-        const aPriceData = getTokenPrice(a.symbol, a.network);
-        const bPriceData = getTokenPrice(b.symbol, b.network);
+        const aPriceData = getTokenPrice(a.symbol, a.network, a.balance, a.balanceUSD);
+        const bPriceData = getTokenPrice(b.symbol, b.network, b.balance, b.balanceUSD);
         aValue = aPriceData?.price_change_percentage_24h || 0;
         bValue = bPriceData?.price_change_percentage_24h || 0;
       } else {
@@ -251,7 +236,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
               </TableRow>
             ) : (
               filteredAndSortedTokens.map((token, index) => {
-                const tokenPrice = getTokenPrice(token.symbol, token.network);
+                const tokenPrice = getTokenPrice(token.symbol, token.network, token.balance, token.balanceUSD);
                 const priceChange = tokenPrice?.price_change_percentage_24h;
                 const currentPrice = tokenPrice?.current_price;
                 const isPositive = priceChange && priceChange > 0;
