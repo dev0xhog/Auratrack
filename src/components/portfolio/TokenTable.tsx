@@ -108,6 +108,9 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
 
   // Get token logo from TrustWallet assets based on contract address
   const getTokenLogo = (symbol: string, network: string, address?: string): string | undefined => {
+    // Return undefined if network is not provided
+    if (!network) return undefined;
+    
     // Map network names to TrustWallet blockchain identifiers
     const networkToTrustWallet: { [key: string]: string } = {
       'ethereum': 'ethereum',
@@ -121,9 +124,10 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
       'fantom': 'fantom',
     };
     
+    const networkLower = network.toLowerCase();
+    
     // For native tokens (no address), use network logo
     if (!address || address === '0x0000000000000000000000000000000000000000') {
-      const networkLower = network.toLowerCase();
       const trustWalletNetwork = Object.keys(networkToTrustWallet).find(key => 
         networkLower.includes(key)
       );
@@ -135,15 +139,13 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     }
     
     // For ERC-20 tokens, construct URL using contract address
-    const networkLower = network.toLowerCase();
     const trustWalletNetwork = Object.keys(networkToTrustWallet).find(key => 
       networkLower.includes(key)
     );
     
     if (trustWalletNetwork && address) {
       // TrustWallet expects checksummed addresses
-      const checksumAddress = address;
-      return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${networkToTrustWallet[trustWalletNetwork]}/assets/${checksumAddress}/logo.png`;
+      return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${networkToTrustWallet[trustWalletNetwork]}/assets/${address}/logo.png`;
     }
     
     return undefined;
