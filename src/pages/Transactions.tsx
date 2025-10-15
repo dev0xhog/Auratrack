@@ -358,11 +358,11 @@ const Transactions = () => {
                           'bg-success/10'
                         }`}>
                           {txType === 'sent' ? (
-                            <ArrowDownLeft className="h-5 w-5 text-destructive" />
+                            <ArrowUpRight className="h-5 w-5 text-destructive" />
                           ) : txType === 'swap' ? (
                             <Repeat className="h-5 w-5 text-accent-foreground" />
                           ) : (
-                            <ArrowUpRight className="h-5 w-5 text-success" />
+                            <ArrowDownLeft className="h-5 w-5 text-success" />
                           )}
                         </div>
                         
@@ -433,9 +433,6 @@ const Transactions = () => {
                         </div>
                         <p className="text-sm font-medium text-muted-foreground">
                           {symbol}
-                        </p>
-                        <p className="text-sm text-muted-foreground/70">
-                          {usdValue > 0 ? formatUSD(usdValue) : '—'}
                         </p>
                       </div>
                     </div>
