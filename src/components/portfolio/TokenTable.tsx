@@ -288,7 +288,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                         )}
                         <div className="flex flex-col">
                           <p className="font-semibold text-base">{token.symbol}</p>
-                          <p className="text-xs text-foreground/60 font-medium uppercase tracking-wide">
+                          <p className="text-xs text-muted-foreground font-medium mt-0.5">
                             {token.network}
                           </p>
                         </div>
