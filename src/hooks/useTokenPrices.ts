@@ -80,13 +80,21 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
 
       const result: { [symbol: string]: TokenPrice } = {};
 
-      // Get all unique CoinGecko IDs for native tokens
-      const nativeTokens = tokens.filter(t => !t.address && symbolToGeckoId[t.symbol.toUpperCase()]);
+      // Separate native tokens and ERC-20 tokens
+      const nativeTokens = tokens.filter(t => 
+        (!t.address || t.address === '0x0000000000000000000000000000000000000000') && 
+        symbolToGeckoId[t.symbol.toUpperCase()]
+      );
+      const erc20Tokens = tokens.filter(t => 
+        t.address && 
+        t.address !== '0x0000000000000000000000000000000000000000'
+      );
+
+      // Fetch native token prices
       const uniqueIds = [...new Set(nativeTokens.map(t => symbolToGeckoId[t.symbol.toUpperCase()]))];
       
       if (uniqueIds.length > 0) {
         try {
-          // Use CoinGecko simple/price endpoint (more reliable than markets)
           const idsParam = uniqueIds.join(',');
           const response = await fetch(
             `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`,
@@ -109,15 +117,70 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
                   name: symbol,
                   current_price: data[geckoId].usd || 0,
                   price_change_percentage_24h: data[geckoId].usd_24h_change || 0,
-                  logo: `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png`,
                 };
               }
             });
-            
-            console.log('Native token prices fetched:', Object.keys(result).length);
           }
         } catch (error) {
-          console.error("CoinGecko API error:", error);
+          console.error("CoinGecko native token API error:", error);
+        }
+      }
+
+      // Fetch ERC-20 token prices by contract address
+      // Group tokens by network for batch fetching
+      const tokensByNetwork: { [network: string]: TokenInfo[] } = {};
+      erc20Tokens.forEach(token => {
+        const network = (token.network || '').toLowerCase();
+        if (!tokensByNetwork[network]) {
+          tokensByNetwork[network] = [];
+        }
+        tokensByNetwork[network].push(token);
+      });
+
+      // Fetch prices for each network
+      for (const [network, networkTokens] of Object.entries(tokensByNetwork)) {
+        const platformId = Object.entries(networkToPlatformId).find(([key]) => 
+          network.includes(key)
+        )?.[1];
+
+        if (platformId && networkTokens.length > 0) {
+          // Batch requests in groups of 30 addresses (CoinGecko limit)
+          const batchSize = 30;
+          for (let i = 0; i < networkTokens.length; i += batchSize) {
+            const batch = networkTokens.slice(i, i + batchSize);
+            const addresses = batch.map(t => t.address).join(',');
+            
+            try {
+              const response = await fetch(
+                `https://api.coingecko.com/api/v3/simple/token_price/${platformId}?contract_addresses=${addresses}&vs_currencies=usd&include_24hr_change=true`,
+                {
+                  headers: {
+                    'Accept': 'application/json'
+                  }
+                }
+              );
+              
+              if (response.ok) {
+                const data = await response.json();
+                
+                // Map response back to token symbols
+                batch.forEach(token => {
+                  const addressLower = token.address?.toLowerCase();
+                  if (addressLower && data[addressLower]) {
+                    result[token.symbol.toUpperCase()] = {
+                      id: addressLower,
+                      symbol: token.symbol.toUpperCase(),
+                      name: token.symbol,
+                      current_price: data[addressLower].usd || 0,
+                      price_change_percentage_24h: data[addressLower].usd_24h_change || 0,
+                    };
+                  }
+                });
+              }
+            } catch (error) {
+              console.error(`CoinGecko ERC-20 token API error for ${platformId}:`, error);
+            }
+          }
         }
       }
 
