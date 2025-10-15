@@ -68,14 +68,14 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
   const { data: priceData, isLoading: isPriceLoading } = useTokenPrices(tokenInfos);
   
   // Create a mapping for token prices - use calculated price from balance if API data unavailable
-  const getTokenPrice = (symbol: string, network: string, balance: number, balanceUSD: number) => {
+  const getTokenPrice = (symbol: string, network: string, balance: number, balanceUSD: number, address?: string) => {
     if (!symbol) return undefined;
     
     // Try direct match first from API
     let price = priceData?.[symbol.toUpperCase()];
     if (price) {
       // Add logo from TrustWallet assets
-      price.logo = getTokenLogo(symbol, network);
+      price.logo = getTokenLogo(symbol, network, address);
       return price;
     }
     
@@ -86,7 +86,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     if (symbol === 'WAVAX') price = priceData?.['AVAX'];
     
     if (price) {
-      price.logo = getTokenLogo(symbol, network);
+      price.logo = getTokenLogo(symbol, network, address);
       return price;
     }
     
@@ -99,32 +99,54 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
         name: symbol,
         current_price: calculatedPrice,
         price_change_percentage_24h: 0, // Can't calculate without historical data
-        logo: getTokenLogo(symbol, network),
+        logo: getTokenLogo(symbol, network, address),
       };
     }
     
     return price;
   };
 
-  // Get token logo from TrustWallet assets or use token-specific CDNs
-  const getTokenLogo = (symbol: string, network: string): string | undefined => {
-    const symbolUpper = symbol.toUpperCase();
-    
-    // Map for well-known token logos
-    const tokenLogos: { [key: string]: string } = {
-      'ETH': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png',
-      'WETH': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
-      'USDT': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
-      'USDC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',
-      'BTC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/bitcoin/info/logo.png',
-      'BNB': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/binance/info/logo.png',
-      'MATIC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png',
-      'POL': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png',
-      'AVAX': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchec/info/logo.png',
-      'DAI': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png',
+  // Get token logo from TrustWallet assets based on contract address
+  const getTokenLogo = (symbol: string, network: string, address?: string): string | undefined => {
+    // Map network names to TrustWallet blockchain identifiers
+    const networkToTrustWallet: { [key: string]: string } = {
+      'ethereum': 'ethereum',
+      'polygon': 'polygon',
+      'bsc': 'smartchain',
+      'binance': 'smartchain',
+      'avalanche': 'avalanchec',
+      'arbitrum': 'arbitrum',
+      'optimism': 'optimism',
+      'base': 'base',
+      'fantom': 'fantom',
     };
     
-    return tokenLogos[symbolUpper];
+    // For native tokens (no address), use network logo
+    if (!address || address === '0x0000000000000000000000000000000000000000') {
+      const networkLower = network.toLowerCase();
+      const trustWalletNetwork = Object.keys(networkToTrustWallet).find(key => 
+        networkLower.includes(key)
+      );
+      
+      if (trustWalletNetwork) {
+        return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${networkToTrustWallet[trustWalletNetwork]}/info/logo.png`;
+      }
+      return undefined;
+    }
+    
+    // For ERC-20 tokens, construct URL using contract address
+    const networkLower = network.toLowerCase();
+    const trustWalletNetwork = Object.keys(networkToTrustWallet).find(key => 
+      networkLower.includes(key)
+    );
+    
+    if (trustWalletNetwork && address) {
+      // TrustWallet expects checksummed addresses
+      const checksumAddress = address;
+      return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${networkToTrustWallet[trustWalletNetwork]}/assets/${checksumAddress}/logo.png`;
+    }
+    
+    return undefined;
   };
 
   const handleSort = (field: SortField) => {
@@ -154,8 +176,8 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
       let bValue: any;
 
       if (sortField === "priceChange") {
-        const aPriceData = getTokenPrice(a.symbol, a.network, a.balance, a.balanceUSD);
-        const bPriceData = getTokenPrice(b.symbol, b.network, b.balance, b.balanceUSD);
+        const aPriceData = getTokenPrice(a.symbol, a.network, a.balance, a.balanceUSD, a.address);
+        const bPriceData = getTokenPrice(b.symbol, b.network, b.balance, b.balanceUSD, b.address);
         aValue = aPriceData?.price_change_percentage_24h || 0;
         bValue = bPriceData?.price_change_percentage_24h || 0;
       } else {
@@ -267,7 +289,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
               </TableRow>
             ) : (
               filteredAndSortedTokens.map((token, index) => {
-                const tokenPrice = getTokenPrice(token.symbol, token.network, token.balance, token.balanceUSD);
+                const tokenPrice = getTokenPrice(token.symbol, token.network, token.balance, token.balanceUSD, token.address);
                 const priceChange = tokenPrice?.price_change_percentage_24h;
                 const currentPrice = tokenPrice?.current_price;
                 const isPositive = priceChange && priceChange > 0;
