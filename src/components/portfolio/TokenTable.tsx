@@ -109,46 +109,48 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
   // Get token logo from TrustWallet assets based on contract address
   const getTokenLogo = (symbol: string, network: string, address?: string): string | undefined => {
     // Return undefined if network is not provided
-    if (!network) return undefined;
+    if (!network) {
+      console.log(`No network for ${symbol}`);
+      return undefined;
+    }
     
     // Map network names to TrustWallet blockchain identifiers
     const networkToTrustWallet: { [key: string]: string } = {
       'ethereum': 'ethereum',
       'polygon': 'polygon',
+      'op mainnet': 'optimism',
+      'optimism': 'optimism',
       'bsc': 'smartchain',
       'binance': 'smartchain',
       'avalanche': 'avalanchec',
       'arbitrum': 'arbitrum',
-      'optimism': 'optimism',
       'base': 'base',
       'fantom': 'fantom',
     };
     
     const networkLower = network.toLowerCase();
     
-    // For native tokens (no address), use network logo
-    if (!address || address === '0x0000000000000000000000000000000000000000') {
-      const trustWalletNetwork = Object.keys(networkToTrustWallet).find(key => 
-        networkLower.includes(key)
-      );
-      
-      if (trustWalletNetwork) {
-        return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${networkToTrustWallet[trustWalletNetwork]}/info/logo.png`;
-      }
+    // Find matching TrustWallet network
+    const trustWalletNetwork = Object.entries(networkToTrustWallet).find(([key]) => 
+      networkLower.includes(key)
+    )?.[1];
+    
+    if (!trustWalletNetwork) {
+      console.log(`No TrustWallet network found for ${network} (${symbol})`);
       return undefined;
     }
     
-    // For ERC-20 tokens, construct URL using contract address
-    const trustWalletNetwork = Object.keys(networkToTrustWallet).find(key => 
-      networkLower.includes(key)
-    );
-    
-    if (trustWalletNetwork && address) {
-      // TrustWallet expects checksummed addresses
-      return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${networkToTrustWallet[trustWalletNetwork]}/assets/${address}/logo.png`;
+    // For native tokens (no address or zero address), use network logo
+    if (!address || address === '0x0000000000000000000000000000000000000000') {
+      const logoUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/info/logo.png`;
+      console.log(`Native token logo for ${symbol} on ${network}:`, logoUrl);
+      return logoUrl;
     }
     
-    return undefined;
+    // For ERC-20 tokens, construct URL using contract address
+    const logoUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/assets/${address}/logo.png`;
+    console.log(`ERC-20 logo for ${symbol} (${address}) on ${network}:`, logoUrl);
+    return logoUrl;
   };
 
   const handleSort = (field: SortField) => {
