@@ -417,6 +417,8 @@ const Transactions = () => {
                             <TokenIcon 
                               logoUrl={tx.token_logo} 
                               symbol={tx.token_symbol}
+                              address={tx.token_address}
+                              network={tx.chain}
                               className="h-6 w-6"
                             />
                           ) : (
