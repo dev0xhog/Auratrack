@@ -82,47 +82,6 @@ export const PortfolioStrategiesSection = ({ address }: PortfolioStrategiesSecti
 
   return (
     <div className="space-y-6">
-      {/* Portfolio Summary Section */}
-      {data.portfolio && data.portfolio.length > 0 && (
-        <Card className="bg-card border-border shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-foreground">Portfolio Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {data.portfolio.map((item, idx) => (
-              <div key={idx} className="space-y-2">
-                <h4 className="text-sm font-semibold text-foreground capitalize">
-                  {item.network.name}
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {item.tokens.map((token, tokenIdx) => (
-                    <div
-                      key={tokenIdx}
-                      className="bg-secondary rounded-lg p-3 border border-border"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold text-foreground">
-                          {token.symbol}
-                        </span>
-                        <Badge variant="outline" className="text-xs">
-                          {item.network.name}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Balance: {token.balance.toFixed(4)}
-                      </p>
-                      <p className="text-sm font-medium text-success">
-                        ${token.balanceUSD.toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Strategy Recommendations Section */}
       <div>
         <h2 className="text-xl font-bold text-foreground mb-4">
