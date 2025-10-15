@@ -25,50 +25,49 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
 
       const result: { [symbol: string]: TokenPrice } = {};
 
-      // Get unique symbols for batch fetching
+      // Get unique symbols
       const uniqueSymbols = [...new Set(tokens.map(t => t.symbol.toUpperCase()))];
       
-      // CoinCap supports up to 100 symbols per request
-      const batchSize = 100;
-      for (let i = 0; i < uniqueSymbols.length; i += batchSize) {
-        const batch = uniqueSymbols.slice(i, i + batchSize);
-        const symbolsParam = batch.join(',');
-        
-        try {
-          // Using CoinCap v3 API - no API key needed for basic usage
-          const response = await fetch(
-            `https://rest.coincap.io/v3/price/bysymbol/${symbolsParam}`,
-            {
-              headers: {
-                'Accept': 'application/json'
-              }
+      try {
+        // Fetch all assets from CoinCap v2 API (free, no key needed)
+        const response = await fetch(
+          `https://api.coincap.io/v2/assets?limit=2000`,
+          {
+            headers: {
+              'Accept': 'application/json'
             }
-          );
-          
-          if (response.ok) {
-            const data = await response.json();
-            
-            // CoinCap v3 returns: { symbol: { price: number, change24Hr: number } }
-            Object.entries(data).forEach(([symbol, priceData]: [string, any]) => {
-              if (priceData && typeof priceData === 'object') {
-                result[symbol.toUpperCase()] = {
-                  id: symbol.toLowerCase(),
-                  symbol: symbol.toUpperCase(),
-                  name: symbol,
-                  current_price: parseFloat(priceData.price || '0'),
-                  price_change_percentage_24h: parseFloat(priceData.change24Hr || '0'),
-                };
-              }
-            });
-          } else {
-            console.error(`CoinCap API error: ${response.status}`);
           }
-        } catch (error) {
-          console.error("CoinCap API fetch error:", error);
+        );
+        
+        if (response.ok) {
+          const responseData = await response.json();
+          const assets = responseData.data || [];
+          
+          // Map assets to our token symbols
+          uniqueSymbols.forEach(symbol => {
+            const asset = assets.find((a: any) => 
+              a.symbol?.toUpperCase() === symbol.toUpperCase()
+            );
+            
+            if (asset) {
+              result[symbol] = {
+                id: asset.id || symbol.toLowerCase(),
+                symbol: symbol,
+                name: asset.name || symbol,
+                current_price: parseFloat(asset.priceUsd || '0'),
+                price_change_percentage_24h: parseFloat(asset.changePercent24Hr || '0'),
+              };
+            }
+          });
+          
+          console.log('Token prices fetched via CoinCap v2:', Object.keys(result).length, 'of', tokens.length, 'tokens');
+        } else {
+          console.error(`CoinCap v2 API error: ${response.status}`);
         }
+      } catch (error) {
+        console.error("CoinCap v2 API fetch error:", error);
       }
 
-      console.log('Token prices fetched via CoinCap:', Object.keys(result).length, 'of', tokens.length, 'tokens');
       return result;
     },
     enabled: tokens.length > 0,
