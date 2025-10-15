@@ -66,24 +66,21 @@ const Portfolio = () => {
 
   // Fetch historical prices for accurate 24hr PnL calculation
   const { data: historicalPnL, isLoading: isPnLLoading } = useQuery({
-    queryKey: ["portfolio-24hr-pnl", walletAddress, totalValue],
+    queryKey: ["portfolio-24hr-pnl", walletAddress, totalValue, allTokens.length],
     queryFn: async () => {
+      console.log('Starting 24hr PnL calculation...', {
+        tokensCount: allTokens.length,
+        totalValue,
+        walletAddress
+      });
+
       if (!allTokens.length || totalValue === 0) {
+        console.log('No tokens or zero value, returning zero PnL');
         return { change: 0, changePercent: 0 };
       }
 
       try {
-        // Get unique symbols
-        const uniqueSymbols = [...new Set(allTokens.map(t => t.symbol.toUpperCase()))];
-        
-        // Calculate timestamp for 24 hours ago
-        const now = Date.now();
-        const yesterday = now - 24 * 60 * 60 * 1000;
-
-        // Fetch historical prices for all tokens
-        const historicalPrices: { [symbol: string]: number } = {};
-        
-        // Batch fetch current prices with historical data
+        // Fetch current prices with historical data from CoinCap
         const response = await fetch(
           `https://api.coincap.io/v2/assets?limit=2000`,
           {
@@ -94,22 +91,24 @@ const Portfolio = () => {
         );
 
         if (!response.ok) {
-          console.error('Failed to fetch CoinCap data for PnL calculation');
+          console.error('CoinCap API error:', response.status);
           return { change: 0, changePercent: 0 };
         }
 
         const responseData = await response.json();
         const assets = responseData.data || [];
+        console.log('Fetched CoinCap assets:', assets.length);
 
         // Calculate portfolio value 24h ago using price change percentage
         let totalValue24hAgo = 0;
+        let tokensWithPriceData = 0;
         
         allTokens.forEach(token => {
           const asset = assets.find((a: any) => 
             a.symbol?.toUpperCase() === token.symbol.toUpperCase()
           );
           
-          if (asset && asset.priceUsd && asset.changePercent24Hr) {
+          if (asset && asset.priceUsd && asset.changePercent24Hr !== null) {
             const currentPrice = parseFloat(asset.priceUsd);
             const changePercent = parseFloat(asset.changePercent24Hr);
             
@@ -119,6 +118,16 @@ const Portfolio = () => {
             // Calculate value 24h ago for this token
             const value24hAgo = token.balance * price24hAgo;
             totalValue24hAgo += value24hAgo;
+            tokensWithPriceData++;
+            
+            console.log(`Token ${token.symbol}:`, {
+              currentPrice,
+              changePercent,
+              price24hAgo,
+              balance: token.balance,
+              value24hAgo,
+              currentValue: token.balanceUSD
+            });
           } else {
             // If no price change data, assume value was the same
             totalValue24hAgo += token.balanceUSD;
@@ -128,11 +137,13 @@ const Portfolio = () => {
         const change = totalValue - totalValue24hAgo;
         const changePercent = totalValue24hAgo > 0 ? (change / totalValue24hAgo) * 100 : 0;
 
-        console.log('24hr PnL calculated:', {
+        console.log('24hr PnL calculation complete:', {
           currentValue: totalValue,
           value24hAgo: totalValue24hAgo,
           change,
-          changePercent
+          changePercent,
+          tokensWithPriceData,
+          totalTokens: allTokens.length
         });
 
         return { change, changePercent };
@@ -145,6 +156,8 @@ const Portfolio = () => {
     staleTime: 60000, // 1 minute
     retry: 2,
   });
+
+  console.log('Historical PnL data:', historicalPnL);
 
   // Count total tokens
   const totalAssets = data?.portfolio.reduce((count, item) => count + item.tokens.length, 0) || 0;
