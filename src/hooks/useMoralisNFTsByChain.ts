@@ -86,6 +86,11 @@ const SUPPORTED_CHAINS = [
   { id: "arb-mainnet", name: "Arbitrum" },
   { id: "opt-mainnet", name: "Optimism" },
   { id: "base-mainnet", name: "Base" },
+  { id: "polygonzkevm-mainnet", name: "Polygon zkEVM" },
+  { id: "arbnova-mainnet", name: "Arbitrum Nova" },
+  { id: "zksync-mainnet", name: "zkSync Era" },
+  { id: "avax-mainnet", name: "Avalanche" },
+  { id: "bnb-mainnet", name: "BNB Chain" },
 ];
 
 // Helper to convert Alchemy NFT to our format
