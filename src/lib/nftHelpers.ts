@@ -8,6 +8,19 @@ const IPFS_GATEWAYS = [
 ];
 
 export const getImageUrl = (nft: MoralisNFT, gatewayIndex = 0): string | null => {
+  // Alchemy provides optimized cached images
+  if (nft.image?.cachedUrl) {
+    return nft.image.cachedUrl;
+  }
+  
+  if (nft.image?.thumbnailUrl) {
+    return nft.image.thumbnailUrl;
+  }
+
+  if (nft.image?.originalUrl) {
+    return nft.image.originalUrl;
+  }
+
   const metadata = typeof nft.normalized_metadata === 'object' 
     ? nft.normalized_metadata 
     : nft.metadata && typeof nft.metadata === 'object' 
@@ -38,7 +51,7 @@ export const isSpamNFT = (nft: MoralisNFT): boolean => {
   // Always trust verified collections
   if (nft.verified_collection === true) return false;
   
-  // Trust Moralis spam detection
+  // Trust Alchemy's spam detection (very accurate)
   if (nft.possible_spam === true) return true;
 
   const metadata = typeof nft.normalized_metadata === 'object' 
