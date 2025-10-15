@@ -143,55 +143,70 @@ export const PortfolioStrategiesSection = ({ address }: PortfolioStrategiesSecti
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {strategy.actions?.map((action, actionIdx) => (
-                  <div
-                    key={actionIdx}
-                    className="bg-secondary rounded-lg p-4 border border-border space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-foreground">
-                        {action.tokens.join(", ")}
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        {action.operation}
-                      </Badge>
-                    </div>
-                    
-                    <p className="text-sm text-muted-foreground">
-                      {action.description}
-                    </p>
-
-                    {action.apy && (
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-success" />
-                        <span className="text-sm font-semibold text-success">
-                          APY: {action.apy}
+                {strategy.actions?.map((action, actionIdx) => {
+                  // Normalize tokens and networks to arrays
+                  const tokens = Array.isArray(action.tokens) 
+                    ? action.tokens 
+                    : typeof action.tokens === 'string' 
+                    ? [action.tokens] 
+                    : [];
+                  
+                  const networks = Array.isArray(action.networks) 
+                    ? action.networks 
+                    : typeof action.networks === 'string' 
+                    ? [action.networks] 
+                    : [];
+                  
+                  return (
+                    <div
+                      key={actionIdx}
+                      className="bg-secondary rounded-lg p-4 border border-border space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground">
+                          {tokens.join(", ")}
                         </span>
+                        <Badge variant="outline" className="text-xs">
+                          {action.operation}
+                        </Badge>
                       </div>
-                    )}
+                      
+                      <p className="text-sm text-muted-foreground">
+                        {action.description}
+                      </p>
 
-                    {action.platforms && action.platforms.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {action.platforms.map((platform, platformIdx) => (
-                          <a
-                            key={platformIdx}
-                            href={platform.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 underline transition-smooth"
-                          >
-                            {platform.name}
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ))}
-                      </div>
-                    )}
+                      {action.apy && (
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-success" />
+                          <span className="text-sm font-semibold text-success">
+                            APY: {action.apy}
+                          </span>
+                        </div>
+                      )}
 
-                    <p className="text-xs text-muted-foreground">
-                      Networks: {action.networks.join(", ")}
-                    </p>
-                  </div>
-                ))}
+                      {action.platforms && action.platforms.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {action.platforms.map((platform, platformIdx) => (
+                            <a
+                              key={platformIdx}
+                              href={platform.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 underline transition-smooth"
+                            >
+                              {platform.name}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+
+                      <p className="text-xs text-muted-foreground">
+                        Networks: {networks.join(", ")}
+                      </p>
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
           ))}
