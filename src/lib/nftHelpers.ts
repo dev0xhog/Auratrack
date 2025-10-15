@@ -47,22 +47,56 @@ export const isSpamNFT = (nft: MoralisNFT): boolean => {
 
   const imageUrl = getImageUrl(nft);
   const name = (nft.name || metadata?.name || '').toLowerCase();
+  const description = (metadata?.description || '').toLowerCase();
   const tokenId = nft.token_id || '';
+  const symbol = (nft.symbol || '').toLowerCase();
   
-  // Spam indicators
+  // Expanded spam keywords (common in removed NFTs)
   const spamKeywords = [
     'airdrop', 'claim', 'bonus', 'free', 'reward', 'visit',
-    '.com', '.io', '$', 'free eth', 'voucher', 'prize'
+    '.com', '.io', '.xyz', '.net', '$', 'voucher', 'prize',
+    'redeem', 'gift', 'winner', 'congratulations', 'limited',
+    'exclusive offer', 'click here', 'mint now', 'drop',
+    'https://', 'http://', 'www.', 't.me', 'telegram'
   ];
+
+  // Emoji spam indicators (common in phishing NFTs)
+  const spamEmojis = ['🎁', '🎉', '💰', '🚀', '💎', '⚡', '🔥', '🎊', '💵', '💸'];
+  const hasSpamEmoji = spamEmojis.some(emoji => name.includes(emoji) || description.includes(emoji));
   
+  // Check for suspicious patterns
   const checks = [
-    tokenId.length > 50, // Extremely large token IDs
+    // Very high probability spam indicators
+    tokenId.length > 50, // Extremely large token IDs (common in spam)
     !imageUrl && !name, // No image AND no name
+    !nft.name && !symbol, // No name and no symbol (likely spam mint)
+    hasSpamEmoji, // Contains spam emojis
+    
+    // Medium probability indicators
     spamKeywords.some(keyword => name.includes(keyword)),
-    imageUrl && (imageUrl.includes('data:application') || imageUrl.includes('base64')),
+    spamKeywords.some(keyword => description.includes(keyword)),
+    spamKeywords.some(keyword => symbol.includes(keyword)),
+    
+    // Image-based indicators
+    imageUrl && (
+      imageUrl.includes('data:application') || 
+      imageUrl.includes('base64') ||
+      imageUrl.includes('blob:')
+    ),
+    
+    // Suspicious patterns
+    name.length > 100, // Extremely long names
+    tokenId.length < 5 && parseInt(tokenId) > 100000, // Very high token IDs with short length
+    
+    // Floor price indicators (spam usually has no floor price)
+    !nft.floor_price_usd && !nft.verified_collection && tokenId.length > 30,
   ];
   
-  return checks.filter(Boolean).length >= 2; // More strict: need 2+ indicators
+  // Count spam indicators
+  const spamScore = checks.filter(Boolean).length;
+  
+  // Be aggressive: if there's just 1 strong indicator, mark as spam
+  return spamScore >= 1;
 };
 
 export const getOpenSeaChain = (chain: string): string => {
