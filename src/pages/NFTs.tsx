@@ -100,10 +100,27 @@ const NFTs = () => {
     return data.sort((a, b) => b.count - a.count);
   }, [nftsByChain, hideSpam]);
 
-  // Filter NFTs by selected network and spam filter
+  // Map chain names to OpenSea chain identifiers
+  const getOpenSeaChain = (chain: string): string => {
+    const chainMap: Record<string, string> = {
+      'Ethereum': 'ethereum',
+      'Polygon': 'matic',
+      'Avalanche': 'avalanche',
+      'BSC': 'bsc',
+      'Arbitrum': 'arbitrum',
+      'Optimism': 'optimism',
+      'Base': 'base',
+      'Fantom': 'fantom',
+    };
+    return chainMap[chain] || chain.toLowerCase();
+  };
+
+  // Filter NFTs by selected network and spam filter, and add chain info
   const displayNFTs = (selectedNetwork
-    ? nftsByChain?.[selectedNetwork] || []
-    : Object.values(nftsByChain || {}).flat()
+    ? (nftsByChain?.[selectedNetwork] || []).map(nft => ({ ...nft, chain: selectedNetwork }))
+    : Object.entries(nftsByChain || {}).flatMap(([chain, nfts]) => 
+        nfts.map(nft => ({ ...nft, chain }))
+      )
   ).filter(nft => !hideSpam || !isSpamNFT(nft));
 
   return (
@@ -248,7 +265,7 @@ const NFTs = () => {
                       )}
                     </div>
                     <a
-                      href={`https://opensea.io/assets/ethereum/${nft.token_address}/${nft.token_id}`}
+                      href={`https://opensea.io/assets/${getOpenSeaChain(nft.chain || 'Ethereum')}/${nft.token_address}/${nft.token_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
