@@ -79,26 +79,17 @@ interface MoralisNFT {
   };
 }
 
-// Alchemy chain identifiers - All NFT-supported chains
+// Alchemy NFT API supported chains (free tier compatible)
 const SUPPORTED_CHAINS = [
   { id: "eth-mainnet", name: "Ethereum" },
   { id: "polygon-mainnet", name: "Polygon" },
   { id: "arb-mainnet", name: "Arbitrum" },
   { id: "opt-mainnet", name: "Optimism" },
   { id: "base-mainnet", name: "Base" },
-  { id: "polygon-zkevm-mainnet", name: "Polygon zkEVM" },
-  { id: "zksync-mainnet", name: "zkSync" },
-  { id: "blast-mainnet", name: "Blast" },
   { id: "linea-mainnet", name: "Linea" },
   { id: "scroll-mainnet", name: "Scroll" },
-  { id: "worldchain-mainnet", name: "World Chain" },
-  { id: "apechain-mainnet", name: "ApeChain" },
   { id: "shape-mainnet", name: "Shape" },
-  { id: "bnb-mainnet", name: "BNB Chain" },
-  { id: "avax-mainnet", name: "Avalanche" },
-  { id: "gnosis-mainnet", name: "Gnosis" },
   { id: "arb-nova-mainnet", name: "Arbitrum Nova" },
-  { id: "zora-mainnet", name: "Zora" },
 ];
 
 // Helper to convert Alchemy NFT to our format
