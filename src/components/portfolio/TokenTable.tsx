@@ -289,7 +289,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                         <div>
                           <p className="font-medium">{token.symbol}</p>
                           <p className="text-xs text-muted-foreground">
-                            {tokenPrice?.name || token.network}
+                            {token.network}
                           </p>
                         </div>
                       </div>
