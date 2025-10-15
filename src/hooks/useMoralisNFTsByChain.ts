@@ -115,59 +115,43 @@ const convertAlchemyToMoralisFormat = (nft: AlchemyNFT): MoralisNFT => {
   };
 };
 
-// Helper to fetch all NFTs with pagination
-const fetchAllNFTsForChain = async (
+// Helper to fetch first page of NFTs (100 max per chain)
+const fetchNFTsForChain = async (
   chain: { id: string; name: string },
   address: string,
   apiKey: string
 ): Promise<MoralisNFT[]> => {
-  const allNFTs: MoralisNFT[] = [];
-  let pageKey: string | undefined;
-  let hasMore = true;
+  try {
+    const url = new URL(`https://${chain.id}.g.alchemy.com/nft/v3/${apiKey}/getNFTsForOwner`);
+    url.searchParams.set("owner", address);
+    url.searchParams.set("withMetadata", "true");
+    url.searchParams.set("pageSize", "100");
+    url.searchParams.set("excludeFilters[]", "SPAM");
 
-  while (hasMore) {
-    try {
-      const url = new URL(`https://${chain.id}.g.alchemy.com/nft/v3/${apiKey}/getNFTsForOwner`);
-      url.searchParams.set("owner", address);
-      url.searchParams.set("withMetadata", "true");
-      url.searchParams.set("pageSize", "100");
-      url.searchParams.set("excludeFilters[]", "SPAM");
-      
-      if (pageKey) {
-        url.searchParams.set("pageKey", pageKey);
-      }
+    const response = await fetch(url.toString(), {
+      headers: {
+        "Accept": "application/json",
+      },
+    });
 
-      const response = await fetch(url.toString(), {
-        headers: {
-          "Accept": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        console.warn(`Failed to fetch NFTs from ${chain.name}: ${response.status}`);
-        break;
-      }
-
-      const data = await response.json();
-      
-      if (data.ownedNfts && data.ownedNfts.length > 0) {
-        const nfts = data.ownedNfts
-          .map((nft: AlchemyNFT) => convertAlchemyToMoralisFormat(nft))
-          .filter((nft: MoralisNFT) => !nft.possible_spam);
-        
-        allNFTs.push(...nfts);
-      }
-
-      pageKey = data.pageKey;
-      hasMore = !!pageKey;
-      
-    } catch (error) {
-      console.warn(`Error fetching NFTs from ${chain.name}:`, error);
-      break;
+    if (!response.ok) {
+      console.warn(`Failed to fetch NFTs from ${chain.name}: ${response.status}`);
+      return [];
     }
-  }
 
-  return allNFTs;
+    const data = await response.json();
+    
+    if (data.ownedNfts && data.ownedNfts.length > 0) {
+      return data.ownedNfts
+        .map((nft: AlchemyNFT) => convertAlchemyToMoralisFormat(nft))
+        .filter((nft: MoralisNFT) => !nft.possible_spam);
+    }
+
+    return [];
+  } catch (error) {
+    console.warn(`Error fetching NFTs from ${chain.name}:`, error);
+    return [];
+  }
 };
 
 export const useMoralisNFTsByChain = (address: string | undefined) => {
@@ -180,14 +164,16 @@ export const useMoralisNFTsByChain = (address: string | undefined) => {
       const results: { [chainName: string]: MoralisNFT[] } = {};
 
       // Fetch NFTs from all supported chains in parallel
-      await Promise.all(
-        SUPPORTED_CHAINS.map(async (chain) => {
-          const nfts = await fetchAllNFTsForChain(chain, address, apiKey);
-          if (nfts.length > 0) {
-            results[chain.name] = nfts;
-          }
-        })
+      const chainResults = await Promise.all(
+        SUPPORTED_CHAINS.map(chain => fetchNFTsForChain(chain, address, apiKey))
       );
+
+      // Map results to chain names
+      SUPPORTED_CHAINS.forEach((chain, index) => {
+        if (chainResults[index].length > 0) {
+          results[chain.name] = chainResults[index];
+        }
+      });
 
       return results;
     },
