@@ -281,22 +281,41 @@ const Transactions = () => {
       );
     }
 
-    // Hide unknown tokens - use Moralis spam detection + pattern matching
+    // Hide unknown tokens - comprehensive spam detection
     if (hideUnknownTokens) {
       filtered = filtered.filter((tx) => {
+        // Always keep native transactions (ETH, MATIC, BNB, etc.)
+        if (tx.type === 'native' && parseFloat(tx.value) > 0) {
+          return true;
+        }
+        
         // Use Moralis's possible_spam field (most reliable)
         if (tx.possible_spam === true) {
+          console.log('Filtered spam token:', tx.token_symbol, tx.token_name);
           return false;
         }
         
-        // Filter low security score tokens (likely scams)
-        if (tx.security_score !== null && tx.security_score !== undefined && tx.security_score < 50) {
+        // Filter unverified contracts with low/no security score
+        if (tx.verified_contract === false || 
+            (tx.security_score !== null && tx.security_score !== undefined && tx.security_score < 50)) {
+          console.log('Filtered low security token:', tx.token_symbol, 'Score:', tx.security_score);
           return false;
         }
         
-        // Additional pattern matching as fallback
-        const symbol = (tx.token_symbol || '').toLowerCase();
-        const tokenName = (tx.token_name || '').toLowerCase();
+        // Check for Unicode lookalike characters (common in scams)
+        const symbol = tx.token_symbol || '';
+        const tokenName = tx.token_name || '';
+        
+        // Detect non-ASCII characters (lookalikes for USDC, USDT, etc.)
+        const hasNonAscii = /[^\x00-\x7F]/.test(symbol) || /[^\x00-\x7F]/.test(tokenName);
+        if (hasNonAscii) {
+          console.log('Filtered non-ASCII token:', symbol, tokenName);
+          return false;
+        }
+        
+        // Additional pattern matching
+        const symbolLower = symbol.toLowerCase();
+        const tokenNameLower = tokenName.toLowerCase();
         const fromAddress = (tx.from_address || '').toLowerCase();
         const toAddress = (tx.to_address || '').toLowerCase();
         const tokenAddress = (tx.token_address || '').toLowerCase();
@@ -305,29 +324,38 @@ const Transactions = () => {
           'fake',
           'phishing',
           'visit',
-          'claim on',
+          'claim',
           'spam',
           'scam',
           'airdrop',
           '.com',
           '.io',
           '.org',
+          '.net',
           'http',
           'www.',
           '1004644',
           'reward',
           'bonus',
+          'gift',
+          'free',
+          'winner',
         ];
         
         const isSuspicious = suspiciousPatterns.some(pattern => 
-          symbol.includes(pattern) ||
-          tokenName.includes(pattern) ||
+          symbolLower.includes(pattern) ||
+          tokenNameLower.includes(pattern) ||
           fromAddress.includes(pattern) ||
           toAddress.includes(pattern) ||
           tokenAddress.includes(pattern)
         );
         
-        return !isSuspicious;
+        if (isSuspicious) {
+          console.log('Filtered suspicious pattern:', symbol || tokenName);
+          return false;
+        }
+        
+        return true;
       });
     }
 
