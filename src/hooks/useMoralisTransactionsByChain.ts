@@ -46,7 +46,7 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
       
-      const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjAxODNkNzAwLWU5MDgtNDY5Yi1hODdjLWVlYzcwYjA5ZTk5NiIsIm9yZ0lkIjoiNDc2MDAyIiwidXNlcklkIjoiNDg5NzAxIiwidHlwZUlkIjoiYmMyZDExYjEtY2E1ZS00ZmYyLTkzMDQtZmIwZWE1ZmFiNDYzIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjA1MDI5MDIsImV4cCI6NDkxNjI2MjkwMn0.Y5JRrStTce-FY7Sg0EHSIpa2O-ZutRHoy8DaK_ZWj1M";
+      const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
       
       // Fetch transactions sequentially with delay to avoid rate limiting
       const results: Array<{ chain: string; transactions: MoralisTransaction[] }> = [];
