@@ -281,9 +281,18 @@ const Transactions = () => {
       );
     }
 
-    // Hide unknown tokens (value = 0)
+    // Hide unknown tokens - filter out tokens with suspicious names
     if (hideUnknownTokens) {
-      filtered = filtered.filter((tx) => parseFloat(tx.value) > 0);
+      filtered = filtered.filter((tx) => {
+        if (tx.type === 'native') return true;
+        const symbol = tx.token_symbol?.toLowerCase() || '';
+        // Filter out fake/phishing tokens
+        return !symbol.includes('fake') && 
+               !symbol.includes('phishing') && 
+               !symbol.includes('visit') &&
+               !symbol.includes('claim') &&
+               parseFloat(tx.value) > 0;
+      });
     }
 
     // Hide low value transactions
@@ -297,12 +306,23 @@ const Transactions = () => {
     return filtered;
   }, [allTransactions, searchQuery, hideUnknownTokens, hideLowValue, tokenPrices]);
 
-  // Group transactions by date
+  // Group transactions by hash to detect swaps, then by date
   const groupedTransactions = useMemo(() => {
-    const groups: { [date: string]: typeof filteredTransactions } = {};
-    
+    // First group by hash to detect swaps
+    const byHash: { [hash: string]: typeof filteredTransactions } = {};
     filteredTransactions.forEach((tx) => {
-      const date = new Date(tx.block_timestamp);
+      if (!byHash[tx.hash]) {
+        byHash[tx.hash] = [];
+      }
+      byHash[tx.hash].push(tx);
+    });
+
+    // Then group by date
+    const groups: { [date: string]: Array<typeof filteredTransactions | typeof filteredTransactions[0]> } = {};
+    
+    Object.values(byHash).forEach((txGroup) => {
+      const firstTx = txGroup[0];
+      const date = new Date(firstTx.block_timestamp);
       const dateKey = date.toLocaleDateString('en-GB', { 
         day: '2-digit', 
         month: 'short', 
@@ -312,7 +332,13 @@ const Transactions = () => {
       if (!groups[dateKey]) {
         groups[dateKey] = [];
       }
-      groups[dateKey].push(tx);
+      
+      // If multiple transactions with same hash, it's likely a swap
+      if (txGroup.length > 1 && txGroup.some(tx => tx.type === 'erc20')) {
+        groups[dateKey].push(txGroup);
+      } else {
+        groups[dateKey].push(firstTx);
+      }
     });
 
     return groups;
@@ -388,48 +414,17 @@ const Transactions = () => {
           {Object.entries(groupedTransactions).map(([date, txs]) => (
             <div key={date} className="space-y-4">
               <h2 className="text-lg font-semibold text-muted-foreground">{date}</h2>
-              {txs.map((tx) => {
+              {txs.map((txItem, idx) => {
                 if (!walletAddress) return null;
                 
-                const category = categorizeTransaction(tx, walletAddress);
-                const { amount, usdValue, symbol } = formatValue(tx);
+                // Check if this is a swap (array of transactions) or single transaction
+                const isSwap = Array.isArray(txItem);
+                const tx = isSwap ? txItem[0] : txItem;
+                const swapTxs = isSwap ? txItem : [txItem];
+                
+                const category = isSwap ? 'swapped' : categorizeTransaction(tx, walletAddress);
                 const protocol = getProtocolName(tx);
                 
-                // Icon and color based on category
-                const getCategoryIcon = () => {
-                  switch (category) {
-                    case 'sent':
-                      return <ArrowUpRight className="h-5 w-5" />;
-                    case 'received':
-                      return <ArrowDownLeft className="h-5 w-5" />;
-                    case 'swapped':
-                      return <Repeat className="h-5 w-5" />;
-                    case 'approved':
-                      return <CheckCircle2 className="h-5 w-5" />;
-                    case 'interaction':
-                      return <Check className="h-5 w-5" />;
-                    default:
-                      return <ArrowUpRight className="h-5 w-5" />;
-                  }
-                };
-
-                const getCategoryColor = () => {
-                  switch (category) {
-                    case 'sent':
-                      return 'bg-background';
-                    case 'received':
-                      return 'bg-background';
-                    case 'swapped':
-                      return 'bg-background';
-                    case 'approved':
-                      return 'bg-background';
-                    case 'interaction':
-                      return 'bg-success/10';
-                    default:
-                      return 'bg-background';
-                  }
-                };
-
                 const getAmountColor = () => {
                   switch (category) {
                     case 'sent':
@@ -437,7 +432,7 @@ const Transactions = () => {
                     case 'received':
                       return 'text-success';
                     case 'swapped':
-                      return amount > 0 ? 'text-success' : 'text-destructive';
+                      return 'text-foreground';
                     default:
                       return 'text-foreground';
                   }
@@ -445,30 +440,56 @@ const Transactions = () => {
                 
                 return (
                   <Card
-                    key={`${tx.hash}-${tx.token_address || 'native'}`}
+                    key={`${tx.hash}-${idx}`}
                     className="border-border/40 p-4 transition-smooth hover:shadow-md bg-card"
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        {/* Icon with token logo overlay */}
+                        {/* Icon with token logos */}
                         <div className="relative flex-shrink-0">
-                          <div className={`rounded-full p-2.5 ${getCategoryColor()}`}>
-                            {tx.type === 'erc20' ? (
-                              <TokenIcon 
-                                logoUrl={tx.token_logo} 
-                                symbol={tx.token_symbol}
-                                address={tx.token_address}
-                                network={tx.chain}
-                                className="h-6 w-6"
-                              />
-                            ) : (
-                              <NetworkIcon chain={tx.chain} className="h-6 w-6" />
-                            )}
-                          </div>
-                          {/* Small category indicator */}
-                          {category === 'swapped' && (
-                            <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5 border border-border">
-                              <Repeat className="h-3 w-3" />
+                          {isSwap && swapTxs.length >= 2 ? (
+                            // Overlapping token logos for swaps
+                            <div className="relative w-12 h-10">
+                              <div className="absolute left-0 top-0 rounded-full p-2 bg-background border-2 border-border">
+                                {swapTxs[0].type === 'erc20' ? (
+                                  <TokenIcon 
+                                    logoUrl={swapTxs[0].token_logo} 
+                                    symbol={swapTxs[0].token_symbol}
+                                    address={swapTxs[0].token_address}
+                                    network={swapTxs[0].chain}
+                                    className="h-5 w-5"
+                                  />
+                                ) : (
+                                  <NetworkIcon chain={swapTxs[0].chain} className="h-5 w-5" />
+                                )}
+                              </div>
+                              <div className="absolute right-0 bottom-0 rounded-full p-2 bg-background border-2 border-border">
+                                {swapTxs[1].type === 'erc20' ? (
+                                  <TokenIcon 
+                                    logoUrl={swapTxs[1].token_logo} 
+                                    symbol={swapTxs[1].token_symbol}
+                                    address={swapTxs[1].token_address}
+                                    network={swapTxs[1].chain}
+                                    className="h-5 w-5"
+                                  />
+                                ) : (
+                                  <NetworkIcon chain={swapTxs[1].chain} className="h-5 w-5" />
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="rounded-full p-2.5 bg-background">
+                              {tx.type === 'erc20' ? (
+                                <TokenIcon 
+                                  logoUrl={tx.token_logo} 
+                                  symbol={tx.token_symbol}
+                                  address={tx.token_address}
+                                  network={tx.chain}
+                                  className="h-6 w-6"
+                                />
+                              ) : (
+                                <NetworkIcon chain={tx.chain} className="h-6 w-6" />
+                              )}
                             </div>
                           )}
                         </div>
@@ -476,33 +497,61 @@ const Transactions = () => {
                         <div className="flex-1 min-w-0">
                           {/* Transaction type */}
                           <p className="font-semibold text-base capitalize mb-0.5">
-                            {category === 'approved' ? `Approved ${symbol}` : category}
+                            {category === 'approved' ? `Approved ${tx.token_symbol || ''}` : category}
                           </p>
                           
-                          {/* Protocol/Platform with network badge */}
+                          {/* Hash link with network badge */}
                           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                             <NetworkIcon chain={tx.chain} className="h-3.5 w-3.5" />
-                            <span className="truncate">{protocol}</span>
+                            <a
+                              href={getExplorerUrl(tx.chain, tx.hash)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-primary hover:underline truncate"
+                            >
+                              {tx.hash.slice(0, 10)}...{tx.hash.slice(-8)}
+                            </a>
                           </div>
                         </div>
                       </div>
                       
                       {/* Amount section */}
                       <div className="text-right flex-shrink-0">
-                        {category !== 'interaction' && category !== 'approved' && (
+                        {isSwap ? (
+                          <div className="space-y-1">
+                            {swapTxs.map((swapTx, i) => {
+                              const { amount, usdValue, symbol } = formatValue(swapTx);
+                              const isSent = swapTx.from_address.toLowerCase() === walletAddress.toLowerCase();
+                              return (
+                                <div key={i}>
+                                  <p className={`text-sm font-semibold ${isSent ? 'text-destructive' : 'text-success'}`}>
+                                    {isSent ? '-' : '+'}
+                                    {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : category !== 'interaction' && category !== 'approved' ? (
                           <>
-                            <p className={`text-base font-semibold ${getAmountColor()}`}>
-                              {category === 'sent' ? '-' : category === 'received' ? '+' : ''}
-                              {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
-                            </p>
-                            {usdValue > 0 && (
-                              <p className="text-sm text-muted-foreground">
-                                {formatUSD(usdValue)}
-                              </p>
-                            )}
+                            {(() => {
+                              const { amount, usdValue, symbol } = formatValue(tx);
+                              return (
+                                <>
+                                  <p className={`text-base font-semibold ${getAmountColor()}`}>
+                                    {category === 'sent' ? '-' : category === 'received' ? '+' : ''}
+                                    {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
+                                  </p>
+                                  {usdValue > 0 && (
+                                    <p className="text-sm text-muted-foreground">
+                                      {formatUSD(usdValue)}
+                                    </p>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </>
-                        )}
-                        {(category === 'interaction' || category === 'approved') && (
+                        ) : (
                           <a
                             href={getExplorerUrl(tx.chain, tx.hash)}
                             target="_blank"
