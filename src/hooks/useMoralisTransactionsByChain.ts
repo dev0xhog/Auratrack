@@ -20,14 +20,24 @@ interface MoralisTransactionsResponse {
 
 // Supported EVM chains for multi-chain transaction fetching
 const SUPPORTED_CHAINS = [
-  "eth",      // Ethereum
-  "polygon",  // Polygon
-  "bsc",      // Binance Smart Chain
-  "avalanche", // Avalanche
-  "fantom",   // Fantom
-  "arbitrum", // Arbitrum
-  "optimism", // Optimism
-  "base",     // Base
+  "eth",           // Ethereum
+  "polygon",       // Polygon
+  "bsc",           // Binance Smart Chain
+  "avalanche",     // Avalanche
+  "fantom",        // Fantom
+  "arbitrum",      // Arbitrum
+  "optimism",      // Optimism
+  "base",          // Base
+  "linea",         // Linea
+  "cronos",        // Cronos
+  "gnosis",        // Gnosis
+  "chiliz",        // Chiliz
+  "moonbeam",      // Moonbeam
+  "moonriver",     // Moonriver
+  "flow",          // Flow
+  "ronin",         // Ronin
+  "lisk",          // Lisk
+  "pulsechain",    // Pulsechain
 ];
 
 export const useMoralisTransactionsByChain = (address: string | undefined) => {

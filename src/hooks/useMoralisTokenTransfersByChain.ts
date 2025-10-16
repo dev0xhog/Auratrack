@@ -24,14 +24,24 @@ interface MoralisTokenTransfersResponse {
 }
 
 const SUPPORTED_CHAINS = [
-  "eth",
-  "polygon",
-  "bsc",
-  "avalanche",
-  "fantom",
-  "arbitrum",
-  "optimism",
-  "base",
+  "eth",           // Ethereum
+  "polygon",       // Polygon
+  "bsc",           // Binance Smart Chain
+  "avalanche",     // Avalanche
+  "fantom",        // Fantom
+  "arbitrum",      // Arbitrum
+  "optimism",      // Optimism
+  "base",          // Base
+  "linea",         // Linea
+  "cronos",        // Cronos
+  "gnosis",        // Gnosis
+  "chiliz",        // Chiliz
+  "moonbeam",      // Moonbeam
+  "moonriver",     // Moonriver
+  "flow",          // Flow
+  "ronin",         // Ronin
+  "lisk",          // Lisk
+  "pulsechain",    // Pulsechain
 ];
 
 export const useMoralisTokenTransfersByChain = (address: string | undefined) => {
