@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, ArrowUpRight, ArrowDownLeft, ExternalLink, Filter, Repeat } from "lucide-react";
+import { Search, ArrowUpRight, ArrowDownLeft, ExternalLink, Filter, Repeat, Check, CheckCircle2 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useMoralisTransactionsByChain } from "@/hooks/useMoralisTransactionsByChain";
 import { useMoralisTokenTransfersByChain } from "@/hooks/useMoralisTokenTransfersByChain";
@@ -27,7 +27,7 @@ const Transactions = () => {
   const isLoading = txsLoading || transfersLoading;
   const error = txsError || transfersError;
 
-  // Unified transaction type
+  // Enhanced unified transaction type
   type UnifiedTransaction = {
     hash: string;
     from_address: string;
@@ -41,7 +41,12 @@ const Transactions = () => {
     token_logo?: string;
     token_decimals?: string;
     token_address?: string;
+    from_address_label?: string;
+    to_address_label?: string;
   };
+
+  // Enhanced transaction category type
+  type TransactionCategory = 'sent' | 'received' | 'swapped' | 'approved' | 'interaction';
 
   // Merge native transactions and token transfers
   const allTransactions = useMemo(() => {
@@ -211,13 +216,58 @@ const Transactions = () => {
     return { amount, usdValue, symbol };
   };
 
-  const getTransactionType = (tx: UnifiedTransaction, walletAddress: string): 'sent' | 'received' | 'swap' => {
+  // Enhanced transaction categorization
+  const categorizeTransaction = (tx: UnifiedTransaction, walletAddress: string): TransactionCategory => {
     const isSent = tx.from_address.toLowerCase() === walletAddress.toLowerCase();
     const isReceived = tx.to_address.toLowerCase() === walletAddress.toLowerCase();
+    const amount = parseFloat(tx.value);
     
-    // If both from and to are the same address, it could be a swap or self-transfer
-    if (isSent && isReceived) return 'swap';
+    // Check if it's an approval (very low value or 0)
+    if (tx.type === 'erc20' && amount === 0) {
+      return 'approved';
+    }
+    
+    // Check for swap patterns - contract interactions with token transfers
+    if (tx.to_address_label || (tx.type === 'erc20' && isSent)) {
+      // Look for swap-like patterns: interactions with known DEX contracts
+      const isSwapContract = tx.to_address_label?.toLowerCase().includes('swap') || 
+                             tx.to_address_label?.toLowerCase().includes('dex') ||
+                             tx.to_address_label?.toLowerCase().includes('1inch') ||
+                             tx.to_address_label?.toLowerCase().includes('uniswap');
+      if (isSwapContract) return 'swapped';
+    }
+    
+    // Check if both sender and receiver - likely interaction or swap
+    if (isSent && isReceived) return 'interaction';
+    
+    // Check for contract interactions (to address is a contract, not simple transfer)
+    if (isSent && tx.type === 'native' && amount === 0) {
+      return 'interaction';
+    }
+    
     return isSent ? 'sent' : 'received';
+  };
+
+  const getProtocolName = (tx: UnifiedTransaction): string => {
+    // Use address label if available
+    if (tx.to_address_label) {
+      return tx.to_address_label;
+    }
+    
+    // Common contract addresses for protocols
+    const address = tx.to_address.toLowerCase();
+    
+    // Add common protocol addresses
+    if (address.includes('1inch')) return '1inch';
+    if (address.includes('uniswap')) return 'Uniswap';
+    if (address.includes('sushiswap')) return 'SushiSwap';
+    
+    // For regular transfers, show shortened address
+    if (tx.type === 'erc20') {
+      return `${tx.to_address.slice(0, 6)}...${tx.to_address.slice(-4)}`;
+    }
+    
+    return getChainName(tx.chain);
   };
 
   // Filter and search transactions
@@ -341,101 +391,128 @@ const Transactions = () => {
               {txs.map((tx) => {
                 if (!walletAddress) return null;
                 
-                const txType = getTransactionType(tx, walletAddress);
+                const category = categorizeTransaction(tx, walletAddress);
                 const { amount, usdValue, symbol } = formatValue(tx);
+                const protocol = getProtocolName(tx);
+                
+                // Icon and color based on category
+                const getCategoryIcon = () => {
+                  switch (category) {
+                    case 'sent':
+                      return <ArrowUpRight className="h-5 w-5" />;
+                    case 'received':
+                      return <ArrowDownLeft className="h-5 w-5" />;
+                    case 'swapped':
+                      return <Repeat className="h-5 w-5" />;
+                    case 'approved':
+                      return <CheckCircle2 className="h-5 w-5" />;
+                    case 'interaction':
+                      return <Check className="h-5 w-5" />;
+                    default:
+                      return <ArrowUpRight className="h-5 w-5" />;
+                  }
+                };
+
+                const getCategoryColor = () => {
+                  switch (category) {
+                    case 'sent':
+                      return 'bg-background';
+                    case 'received':
+                      return 'bg-background';
+                    case 'swapped':
+                      return 'bg-background';
+                    case 'approved':
+                      return 'bg-background';
+                    case 'interaction':
+                      return 'bg-success/10';
+                    default:
+                      return 'bg-background';
+                  }
+                };
+
+                const getAmountColor = () => {
+                  switch (category) {
+                    case 'sent':
+                      return 'text-destructive';
+                    case 'received':
+                      return 'text-success';
+                    case 'swapped':
+                      return amount > 0 ? 'text-success' : 'text-destructive';
+                    default:
+                      return 'text-foreground';
+                  }
+                };
                 
                 return (
                   <Card
                     key={`${tx.hash}-${tx.token_address || 'native'}`}
-                    className="gradient-card border-border/40 p-6 transition-smooth hover:border-primary/40"
+                    className="border-border/40 p-4 transition-smooth hover:shadow-md bg-card"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        {/* Transaction direction icon */}
-                        <div className={`rounded-full p-3 ${
-                          txType === 'sent' ? 'bg-destructive/10' : 
-                          txType === 'swap' ? 'bg-accent' : 
-                          'bg-success/10'
-                        }`}>
-                          {txType === 'sent' ? (
-                            <ArrowUpRight className="h-5 w-5 text-destructive" />
-                          ) : txType === 'swap' ? (
-                            <Repeat className="h-5 w-5 text-accent-foreground" />
-                          ) : (
-                            <ArrowDownLeft className="h-5 w-5 text-success" />
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {/* Icon with token logo overlay */}
+                        <div className="relative flex-shrink-0">
+                          <div className={`rounded-full p-2.5 ${getCategoryColor()}`}>
+                            {tx.type === 'erc20' ? (
+                              <TokenIcon 
+                                logoUrl={tx.token_logo} 
+                                symbol={tx.token_symbol}
+                                address={tx.token_address}
+                                network={tx.chain}
+                                className="h-6 w-6"
+                              />
+                            ) : (
+                              <NetworkIcon chain={tx.chain} className="h-6 w-6" />
+                            )}
+                          </div>
+                          {/* Small category indicator */}
+                          {category === 'swapped' && (
+                            <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5 border border-border">
+                              <Repeat className="h-3 w-3" />
+                            </div>
                           )}
                         </div>
                         
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-base capitalize">
-                              {txType}
-                            </span>
-                            {tx.type === 'erc20' && (
-                              <Badge variant="secondary" className="text-xs">
-                                ERC-20
-                              </Badge>
-                            )}
-                            {tx.receipt_status && (
-                              <Badge variant="outline" className="text-xs">
-                                {tx.receipt_status === "1" ? "Success" : "Failed"}
-                              </Badge>
-                            )}
-                          </div>
+                        <div className="flex-1 min-w-0">
+                          {/* Transaction type */}
+                          <p className="font-semibold text-base capitalize mb-0.5">
+                            {category === 'approved' ? `Approved ${symbol}` : category}
+                          </p>
                           
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                            {/* Network icon and name */}
-                            <div className="flex items-center gap-1.5">
-                              <NetworkIcon chain={tx.chain} className="h-4 w-4" />
-                              <span className="font-medium">{getChainName(tx.chain)}</span>
-                            </div>
-                            <span>•</span>
-                            <span>
-                              {new Date(tx.block_timestamp).toLocaleTimeString('en-US', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
+                          {/* Protocol/Platform with network badge */}
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <NetworkIcon chain={tx.chain} className="h-3.5 w-3.5" />
+                            <span className="truncate">{protocol}</span>
                           </div>
-                          
+                        </div>
+                      </div>
+                      
+                      {/* Amount section */}
+                      <div className="text-right flex-shrink-0">
+                        {category !== 'interaction' && category !== 'approved' && (
+                          <>
+                            <p className={`text-base font-semibold ${getAmountColor()}`}>
+                              {category === 'sent' ? '-' : category === 'received' ? '+' : ''}
+                              {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
+                            </p>
+                            {usdValue > 0 && (
+                              <p className="text-sm text-muted-foreground">
+                                {formatUSD(usdValue)}
+                              </p>
+                            )}
+                          </>
+                        )}
+                        {(category === 'interaction' || category === 'approved') && (
                           <a
                             href={getExplorerUrl(tx.chain, tx.hash)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-primary hover:underline flex items-center gap-1"
                           >
-                            {tx.hash.slice(0, 10)}...{tx.hash.slice(-8)}
+                            View
                             <ExternalLink className="h-3 w-3" />
                           </a>
-                        </div>
-                      </div>
-                      
-                      <div className="text-right">
-                        <div className="flex items-center justify-end gap-2 mb-1">
-                          {/* Token icon - use proper token logo for ERC-20 */}
-                          {tx.type === 'erc20' ? (
-                            <TokenIcon 
-                              logoUrl={tx.token_logo} 
-                              symbol={tx.token_symbol}
-                              address={tx.token_address}
-                              network={tx.chain}
-                              className="h-6 w-6"
-                            />
-                          ) : (
-                            <NetworkIcon chain={tx.chain} className="h-6 w-6" />
-                          )}
-                          <p className={`text-xl font-bold ${
-                            txType === 'sent' ? 'text-destructive' : 
-                            txType === 'swap' ? 'text-foreground' : 
-                            'text-success'
-                          }`}>
-                            {txType === 'sent' ? '-' : txType === 'swap' ? '' : '+'}
-                            {formatNumber(amount, amount < 1 ? 6 : 2)}
-                          </p>
-                        </div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          {symbol}
-                        </p>
+                        )}
                       </div>
                     </div>
                   </Card>
