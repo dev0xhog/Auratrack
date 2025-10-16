@@ -9,29 +9,26 @@ export const NetworkIcon = ({ chain, className = "h-5 w-5" }: NetworkIconProps) 
   const [imageError, setImageError] = useState(false);
 
   const getNetworkLogo = (chain: string) => {
-    // Use reliable logo sources
-    const logos: { [key: string]: string } = {
-      eth: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
-      polygon: "https://cryptologos.cc/logos/polygon-matic-logo.png",
-      bsc: "https://cryptologos.cc/logos/bnb-bnb-logo.png",
-      avalanche: "https://cryptologos.cc/logos/avalanche-avax-logo.png",
-      fantom: "https://cryptologos.cc/logos/fantom-ftm-logo.png",
-      arbitrum: "https://cryptologos.cc/logos/arbitrum-arb-logo.png",
-      optimism: "https://cryptologos.cc/logos/optimism-ethereum-op-logo.png",
-      base: "https://altcoinsbox.com/wp-content/uploads/2023/03/base-logo.png",
-      linea: "https://assets-global.website-files.com/64d5a7fd71178d8b89fdb1e0/64d5aaeb4b6c55c955dafb85_linea-logo.png",
-      cronos: "https://cryptologos.cc/logos/cronos-cro-logo.png",
-      gnosis: "https://cryptologos.cc/logos/gnosis-gno-gno-logo.png",
-      chiliz: "https://cryptologos.cc/logos/chiliz-chz-logo.png",
-      moonbeam: "https://cryptologos.cc/logos/moonbeam-glmr-logo.png",
-      moonriver: "https://cryptologos.cc/logos/moonriver-movr-logo.png",
-      flow: "https://cryptologos.cc/logos/flow-flow-logo.png",
-      ronin: "https://cdn.worldvectorlogo.com/logos/ronin-1.svg",
-      lisk: "https://cryptologos.cc/logos/lisk-lsk-logo.png",
-      pulsechain: "https://icons.llamao.fi/icons/chains/rsz_pulsechain.jpg",
-    };
-    
-    return logos[chain] || logos.eth;
+    // Use TrustWallet assets for network logos
+    if (chain === "eth") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png";
+    if (chain === "polygon") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png";
+    if (chain === "bsc") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png";
+    if (chain === "avalanche") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchec/info/logo.png";
+    if (chain === "fantom") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/fantom/info/logo.png";
+    if (chain === "arbitrum") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/arbitrum/info/logo.png";
+    if (chain === "optimism") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/optimism/info/logo.png";
+    if (chain === "base") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/info/logo.png";
+    if (chain === "linea") return "https://assets.coingecko.com/coins/images/31038/standard/linea.png";
+    if (chain === "cronos") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/cronos/info/logo.png";
+    if (chain === "gnosis") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/xdai/info/logo.png";
+    if (chain === "chiliz") return "https://assets.coingecko.com/coins/images/8834/standard/Chiliz.png";
+    if (chain === "moonbeam") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/moonbeam/info/logo.png";
+    if (chain === "moonriver") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/moonriver/info/logo.png";
+    if (chain === "flow") return "https://assets.coingecko.com/coins/images/13446/standard/5f6294c0c7a8cda55cb1c936_Flow_Wordmark.png";
+    if (chain === "ronin") return "https://assets.coingecko.com/coins/images/20009/standard/ronin.png";
+    if (chain === "lisk") return "https://assets.coingecko.com/coins/images/385/standard/Lisk_Symbol.png";
+    if (chain === "pulsechain") return "https://assets.coingecko.com/coins/images/26899/standard/pulsechain.jpeg";
+    return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png";
   };
 
   const getNetworkColor = (chain: string) => {
