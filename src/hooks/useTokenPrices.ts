@@ -29,105 +29,43 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
       const uniqueSymbols = [...new Set(tokens.map(t => t.symbol.toUpperCase()))];
       
       try {
-        // Map common symbols to CoinGecko coin IDs
-        const coinIdMap: { [symbol: string]: string } = {
-          'ETH': 'ethereum',
-          'BTC': 'bitcoin',
-          'USDT': 'tether',
-          'USDC': 'usd-coin',
-          'BNB': 'binancecoin',
-          'MATIC': 'matic-network',
-          'AVAX': 'avalanche-2',
-          'FTM': 'fantom',
-          'CRO': 'crypto-com-chain',
-          'XDAI': 'xdai',
-          'CHZ': 'chiliz',
-          'GLMR': 'moonbeam',
-          'MOVR': 'moonriver',
-          'FLOW': 'flow',
-          'RON': 'ronin',
-          'LSK': 'lisk',
-          'PLS': 'pulsechain',
-          'DAI': 'dai',
-          'WETH': 'weth',
-          'WBTC': 'wrapped-bitcoin',
-          'LINK': 'chainlink',
-          'UNI': 'uniswap',
-          'AAVE': 'aave',
-          'SUSHI': 'sushi',
-          'CRV': 'curve-dao-token',
-          'MKR': 'maker',
-          'SNX': 'havven',
-          'COMP': 'compound-governance-token',
-          'YFI': 'yearn-finance',
-          'BAL': 'balancer',
-          'GRT': 'the-graph',
-          'LDO': 'lido-dao',
-          'APE': 'apecoin',
-          'SAND': 'the-sandbox',
-          'MANA': 'decentraland',
-          'AXS': 'axie-infinity',
-          'SHIB': 'shiba-inu',
-          'DOGE': 'dogecoin',
-          'DOT': 'polkadot',
-          'SOL': 'solana',
-          'ADA': 'cardano',
-          'XRP': 'ripple',
-          'LTC': 'litecoin',
-          'ATOM': 'cosmos',
-          'NEAR': 'near',
-          'ARB': 'arbitrum',
-          'OP': 'optimism',
-        };
-
-        // Build list of coin IDs to fetch
-        const coinIds = uniqueSymbols
-          .map(symbol => coinIdMap[symbol])
-          .filter(id => id !== undefined);
-
-        if (coinIds.length > 0) {
-          // Fetch prices in batches (CoinGecko allows up to 250 at once)
-          const batchSize = 250;
-          for (let i = 0; i < coinIds.length; i += batchSize) {
-            const batch = coinIds.slice(i, i + batchSize);
-            const idsParam = batch.join(',');
-            
-            const response = await fetch(
-              `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`,
-              {
-                headers: {
-                  'Accept': 'application/json'
-                }
-              }
-            );
-            
-            if (response.ok) {
-              const data = await response.json();
-              
-              // Map response back to symbols
-              Object.entries(coinIdMap).forEach(([symbol, coinId]) => {
-                if (uniqueSymbols.includes(symbol) && data[coinId] && data[coinId].usd) {
-                  result[symbol] = {
-                    id: coinId,
-                    symbol: symbol,
-                    name: symbol,
-                    current_price: data[coinId].usd,
-                    price_change_percentage_24h: data[coinId].usd_24h_change || 0,
-                  };
-                }
-              });
-            }
-
-            // Add small delay between batches to respect rate limits
-            if (i + batchSize < coinIds.length) {
-              await new Promise(resolve => setTimeout(resolve, 100));
+        // Fetch all assets from CoinCap v2 API (free, no key needed)
+        const response = await fetch(
+          `https://api.coincap.io/v2/assets?limit=2000`,
+          {
+            headers: {
+              'Accept': 'application/json'
             }
           }
-        }
+        );
         
-        console.log('Token prices fetched from CoinGecko:', Object.keys(result).length, 'of', uniqueSymbols.length, 'tokens');
+        if (response.ok) {
+          const responseData = await response.json();
+          const assets = responseData.data || [];
+          
+          // Map assets to our token symbols
+          uniqueSymbols.forEach(symbol => {
+            const asset = assets.find((a: any) => 
+              a.symbol?.toUpperCase() === symbol.toUpperCase()
+            );
+            
+            if (asset) {
+              result[symbol] = {
+                id: asset.id || symbol.toLowerCase(),
+                symbol: symbol,
+                name: asset.name || symbol,
+                current_price: parseFloat(asset.priceUsd || '0'),
+                price_change_percentage_24h: parseFloat(asset.changePercent24Hr || '0'),
+              };
+            }
+          });
+          
+          console.log('Token prices fetched via CoinCap v2:', Object.keys(result).length, 'of', tokens.length, 'tokens');
+        } else {
+          console.error(`CoinCap v2 API error: ${response.status}`);
+        }
       } catch (error) {
-        console.error("Token price fetch error:", error);
+        console.error("CoinCap v2 API fetch error:", error);
       }
 
       return result;

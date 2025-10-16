@@ -738,22 +738,21 @@ const Transactions = () => {
                       {/* Amount section */}
                       <div className="text-right flex-shrink-0">
                         {isSwap ? (
-                          <div className="space-y-2">
+                          <div className="space-y-1">
                             {swapTxs.map((swapTx, i) => {
                               const { amount, usdValue, symbol } = formatValue(swapTx);
                               const isSent = swapTx.from_address.toLowerCase() === walletAddress.toLowerCase();
                               return (
-                                <div key={i} className="space-y-0.5">
-                                  <div className="flex items-center gap-1 justify-end">
-                                    {isSent ? <ArrowUpRight className="h-3 w-3 text-destructive" /> : <ArrowDownLeft className="h-3 w-3 text-success" />}
-                                    <p className={`text-sm font-semibold ${isSent ? 'text-destructive' : 'text-success'}`}>
-                                      {isSent ? '-' : '+'}
-                                      {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
-                                    </p>
-                                  </div>
-                                  <p className={`text-xs font-medium ${usdValue > 0 ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
-                                    {usdValue > 0 ? formatUSD(usdValue) : 'Price unavailable'}
+                                <div key={i}>
+                                  <p className={`text-sm font-semibold ${isSent ? 'text-destructive' : 'text-success'}`}>
+                                    {isSent ? '-' : '+'}
+                                    {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
                                   </p>
+                                  {usdValue > 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                      {formatUSD(usdValue)}
+                                    </p>
+                                  )}
                                 </div>
                               );
                             })}
@@ -763,7 +762,7 @@ const Transactions = () => {
                             {(() => {
                               const { amount, usdValue, symbol } = formatValue(tx);
                               return (
-                                <div className="space-y-0.5">
+                                <>
                                   <div className="flex items-center gap-1 justify-end">
                                     {category === 'sent' && <ArrowUpRight className="h-3.5 w-3.5 text-destructive" />}
                                     {category === 'received' && <ArrowDownLeft className="h-3.5 w-3.5 text-success" />}
@@ -772,10 +771,12 @@ const Transactions = () => {
                                       {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
                                     </p>
                                   </div>
-                                  <p className={`text-sm font-medium ${usdValue > 0 ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
-                                    {usdValue > 0 ? formatUSD(usdValue) : 'Price unavailable'}
-                                  </p>
-                                </div>
+                                  {usdValue > 0 && (
+                                    <p className="text-sm text-muted-foreground">
+                                      {formatUSD(usdValue)}
+                                    </p>
+                                  )}
+                                </>
                               );
                             })()}
                           </>
