@@ -276,17 +276,25 @@ const Transactions = () => {
     // Hide unknown tokens - filter out tokens with suspicious names
     if (hideUnknownTokens) {
       filtered = filtered.filter((tx) => {
+        // Always show native transactions
         if (tx.type === 'native') return true;
-        const symbol = tx.token_symbol?.toLowerCase() || '';
-        const toAddress = tx.to_address?.toLowerCase() || '';
-        // Filter out fake/phishing tokens and suspicious contracts
-        return !symbol.includes('fake') && 
-               !symbol.includes('phishing') && 
-               !symbol.includes('visit') &&
-               !symbol.includes('claim') &&
-               !symbol.includes('_phishing') &&
-               !toAddress.includes('fake_phishing') &&
-               parseFloat(tx.value) > 0;
+        
+        const symbol = (tx.token_symbol || '').toLowerCase();
+        const fromAddress = (tx.from_address || '').toLowerCase();
+        const toAddress = (tx.to_address || '').toLowerCase();
+        
+        // Filter out fake/phishing tokens by symbol and address patterns
+        const isFakeToken = symbol.includes('fake') || 
+                           symbol.includes('phishing') || 
+                           symbol.includes('visit') ||
+                           symbol.includes('claim') ||
+                           symbol.includes('spam') ||
+                           fromAddress.includes('fake') ||
+                           toAddress.includes('fake') ||
+                           fromAddress.includes('phishing') ||
+                           toAddress.includes('phishing');
+        
+        return !isFakeToken;
       });
     }
 
@@ -509,9 +517,9 @@ const Transactions = () => {
                         {/* Icon with token logos */}
                         <div className="relative flex-shrink-0">
                           {isSwap && swapTxs.length >= 2 ? (
-                            // Overlapping token logos for swaps
-                            <div className="relative w-12 h-10">
-                              <div className="absolute left-0 top-0 rounded-full p-2 bg-background border-2 border-border">
+                            // Side-by-side token logos for swaps with arrow
+                            <div className="flex items-center gap-1">
+                              <div className="rounded-full p-2 bg-background border-2 border-border">
                                 {swapTxs[0].type === 'erc20' ? (
                                   <TokenIcon 
                                     logoUrl={swapTxs[0].token_logo} 
@@ -524,7 +532,8 @@ const Transactions = () => {
                                   <NetworkIcon chain={swapTxs[0].chain} className="h-5 w-5" />
                                 )}
                               </div>
-                              <div className="absolute right-0 bottom-0 rounded-full p-2 bg-background border-2 border-border">
+                              <Repeat className="h-3 w-3 text-muted-foreground" />
+                              <div className="rounded-full p-2 bg-background border-2 border-border">
                                 {swapTxs[1].type === 'erc20' ? (
                                   <TokenIcon 
                                     logoUrl={swapTxs[1].token_logo} 
