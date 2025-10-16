@@ -231,6 +231,11 @@ const Transactions = () => {
       }
     }
     
+    // Check for interactions (contract calls with no value transfer)
+    if (tx.type === 'native' && amount === 0) {
+      return 'interaction';
+    }
+    
     // Simple categorization - let swap detection handle complex cases
     return isSent ? 'sent' : 'received';
   };
@@ -273,11 +278,14 @@ const Transactions = () => {
       filtered = filtered.filter((tx) => {
         if (tx.type === 'native') return true;
         const symbol = tx.token_symbol?.toLowerCase() || '';
-        // Filter out fake/phishing tokens
+        const toAddress = tx.to_address?.toLowerCase() || '';
+        // Filter out fake/phishing tokens and suspicious contracts
         return !symbol.includes('fake') && 
                !symbol.includes('phishing') && 
                !symbol.includes('visit') &&
                !symbol.includes('claim') &&
+               !symbol.includes('_phishing') &&
+               !toAddress.includes('fake_phishing') &&
                parseFloat(tx.value) > 0;
       });
     }
@@ -363,25 +371,34 @@ const Transactions = () => {
       });
       
       // Detect swaps: user both sent AND received non-zero amounts
+      // More lenient detection to catch Rabby wallet swaps and DEX aggregators
       if (nonApprovalSent.length > 0 && nonApprovalReceived.length > 0) {
-        // This is a swap - create a pair with one sent and one received
-        const swapPair: UnifiedTransaction[] = [nonApprovalSent[0], nonApprovalReceived[0]];
+        // This is a swap - create a pair with sent and received
+        // For Rabby/complex swaps, include ALL sent and received tokens
+        const swapPair: UnifiedTransaction[] = [];
+        
+        // Add all sent tokens (but limit to 2 for display purposes)
+        nonApprovalSent.slice(0, 2).forEach(tx => swapPair.push(tx));
+        
+        // Add all received tokens (but limit to 2 for display purposes)
+        nonApprovalReceived.slice(0, 2).forEach(tx => swapPair.push(tx));
+        
         groups[dateKey].push(swapPair);
       } 
       // Only sends (no receives)
       else if (nonApprovalSent.length > 0) {
-        // Add only the first/primary send to avoid duplicates
-        groups[dateKey].push(nonApprovalSent[0]);
+        // If multiple sends with no receives, show each one
+        nonApprovalSent.forEach(tx => groups[dateKey].push(tx));
       }
       // Only receives (no sends)
       else if (nonApprovalReceived.length > 0) {
-        // Add only the first/primary receive to avoid duplicates
-        groups[dateKey].push(nonApprovalReceived[0]);
+        // If multiple receives with no sends, show each one
+        nonApprovalReceived.forEach(tx => groups[dateKey].push(tx));
       }
-      // Only approvals or zero-value transactions
+      // Only approvals or interactions
       else if (relevantTxs.length > 0) {
-        // Show the first one
-        groups[dateKey].push(relevantTxs[0]);
+        // Show interactions and approvals
+        relevantTxs.forEach(tx => groups[dateKey].push(tx));
       }
     });
 
