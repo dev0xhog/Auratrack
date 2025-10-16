@@ -222,29 +222,16 @@ const Transactions = () => {
     const isReceived = tx.to_address.toLowerCase() === walletAddress.toLowerCase();
     const amount = parseFloat(tx.value);
     
-    // Check if it's an approval (very low value or 0)
-    if (tx.type === 'erc20' && amount === 0) {
-      return 'approved';
+    // Check if it's an approval (ERC20 with very low or zero value)
+    if (tx.type === 'erc20') {
+      const decimals = parseInt(tx.token_decimals || '18');
+      const tokenAmount = amount / Math.pow(10, decimals);
+      if (tokenAmount === 0 || tokenAmount < 0.000001) {
+        return 'approved';
+      }
     }
     
-    // Check for swap patterns - contract interactions with token transfers
-    if (tx.to_address_label || (tx.type === 'erc20' && isSent)) {
-      // Look for swap-like patterns: interactions with known DEX contracts
-      const isSwapContract = tx.to_address_label?.toLowerCase().includes('swap') || 
-                             tx.to_address_label?.toLowerCase().includes('dex') ||
-                             tx.to_address_label?.toLowerCase().includes('1inch') ||
-                             tx.to_address_label?.toLowerCase().includes('uniswap');
-      if (isSwapContract) return 'swapped';
-    }
-    
-    // Check if both sender and receiver - likely interaction or swap
-    if (isSent && isReceived) return 'interaction';
-    
-    // Check for contract interactions (to address is a contract, not simple transfer)
-    if (isSent && tx.type === 'native' && amount === 0) {
-      return 'interaction';
-    }
-    
+    // Simple categorization - let swap detection handle complex cases
     return isSent ? 'sent' : 'received';
   };
 
@@ -310,8 +297,10 @@ const Transactions = () => {
   const groupedTransactions = useMemo(() => {
     if (!walletAddress) return {};
     
-    // First group by hash to detect swaps
-    const byHash: { [hash: string]: typeof filteredTransactions } = {};
+    const lowerWallet = walletAddress.toLowerCase();
+    
+    // First group by hash
+    const byHash: { [hash: string]: UnifiedTransaction[] } = {};
     filteredTransactions.forEach((tx) => {
       if (!byHash[tx.hash]) {
         byHash[tx.hash] = [];
@@ -319,8 +308,8 @@ const Transactions = () => {
       byHash[tx.hash].push(tx);
     });
 
-    // Then group by date
-    const groups: { [date: string]: Array<typeof filteredTransactions | typeof filteredTransactions[0]> } = {};
+    // Process each transaction group and organize by date
+    const groups: { [date: string]: Array<UnifiedTransaction[] | UnifiedTransaction> } = {};
     
     Object.values(byHash).forEach((txGroup) => {
       const firstTx = txGroup[0];
@@ -335,36 +324,38 @@ const Transactions = () => {
         groups[dateKey] = [];
       }
       
-      // Only treat as swap if there are exactly 2 ERC20 transfers with opposite directions
-      // (one sent FROM user, one received TO user)
-      if (txGroup.length >= 2 && txGroup.every(tx => tx.type === 'erc20')) {
-        const hasSent = txGroup.some(tx => tx.from_address.toLowerCase() === walletAddress.toLowerCase());
-        const hasReceived = txGroup.some(tx => tx.to_address.toLowerCase() === walletAddress.toLowerCase());
+      // Detect if this is a swap transaction
+      if (txGroup.length >= 2) {
+        // Count sends and receives from/to wallet
+        const sentTxs = txGroup.filter(tx => tx.from_address.toLowerCase() === lowerWallet);
+        const receivedTxs = txGroup.filter(tx => tx.to_address.toLowerCase() === lowerWallet);
         
-        // It's a swap only if user both sent AND received tokens
-        if (hasSent && hasReceived) {
-          // Filter to only show the sent and received transactions
-          const swapTxs = txGroup.filter(tx => 
-            tx.from_address.toLowerCase() === walletAddress.toLowerCase() ||
-            tx.to_address.toLowerCase() === walletAddress.toLowerCase()
-          );
-          if (swapTxs.length >= 2) {
-            groups[dateKey].push(swapTxs);
-          } else {
-            // Not a valid swap, add individually
-            txGroup.forEach(tx => groups[dateKey].push(tx));
-          }
+        // It's a swap if user both sent something AND received something
+        if (sentTxs.length > 0 && receivedTxs.length > 0) {
+          // Combine sent and received for the swap display
+          const swapPair: UnifiedTransaction[] = [];
+          
+          // Add the primary sent token (usually the first one)
+          if (sentTxs.length > 0) swapPair.push(sentTxs[0]);
+          
+          // Add the primary received token (usually the first one)
+          if (receivedTxs.length > 0) swapPair.push(receivedTxs[0]);
+          
+          groups[dateKey].push(swapPair);
         } else {
-          // Not a swap, just multiple transfers in same tx - add individually
-          txGroup.forEach(tx => groups[dateKey].push(tx));
+          // Multiple txs in same hash but not a swap (e.g., multiple transfers)
+          // Add each unique transaction that involves the wallet
+          txGroup.forEach(tx => {
+            const isSent = tx.from_address.toLowerCase() === lowerWallet;
+            const isReceived = tx.to_address.toLowerCase() === lowerWallet;
+            if (isSent || isReceived) {
+              groups[dateKey].push(tx);
+            }
+          });
         }
       } else {
-        // Single transaction or mixed types - add individually
-        if (txGroup.length === 1) {
-          groups[dateKey].push(firstTx);
-        } else {
-          txGroup.forEach(tx => groups[dateKey].push(tx));
-        }
+        // Single transaction
+        groups[dateKey].push(firstTx);
       }
     });
 
