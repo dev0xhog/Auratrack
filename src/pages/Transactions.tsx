@@ -626,10 +626,18 @@ const Transactions = () => {
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          {/* Transaction type */}
-                          <p className="font-semibold text-base capitalize mb-0.5">
-                            {category === 'approved' ? `Approved ${tx.token_symbol || ''}` : category}
-                          </p>
+                          {/* Transaction type with arrow icon */}
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            {category === 'sent' && (
+                              <ArrowUpRight className="h-4 w-4 text-destructive" />
+                            )}
+                            {category === 'received' && (
+                              <ArrowDownLeft className="h-4 w-4 text-success" />
+                            )}
+                            <p className="font-semibold text-base capitalize">
+                              {category === 'approved' ? `Approved ${tx.token_symbol || ''}` : category}
+                            </p>
+                          </div>
                           
                           {/* Hash link with network badge */}
                           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
