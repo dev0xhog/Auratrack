@@ -273,28 +273,46 @@ const Transactions = () => {
       );
     }
 
-    // Hide unknown tokens - filter out tokens with suspicious names
+    // Hide unknown tokens - filter out tokens with suspicious names and fake contracts
     if (hideUnknownTokens) {
       filtered = filtered.filter((tx) => {
-        // Always show native transactions
-        if (tx.type === 'native') return true;
-        
         const symbol = (tx.token_symbol || '').toLowerCase();
         const fromAddress = (tx.from_address || '').toLowerCase();
         const toAddress = (tx.to_address || '').toLowerCase();
+        const tokenAddress = (tx.token_address || '').toLowerCase();
         
-        // Filter out fake/phishing tokens by symbol and address patterns
-        const isFakeToken = symbol.includes('fake') || 
-                           symbol.includes('phishing') || 
-                           symbol.includes('visit') ||
-                           symbol.includes('claim') ||
-                           symbol.includes('spam') ||
-                           fromAddress.includes('fake') ||
-                           toAddress.includes('fake') ||
-                           fromAddress.includes('phishing') ||
-                           toAddress.includes('phishing');
+        // List of suspicious patterns
+        const suspiciousPatterns = [
+          'fake',
+          'phishing',
+          'visit',
+          'claim',
+          'spam',
+          'scam',
+          'airdrop',
+          '.com',
+          '.io',
+          '.org',
+          'http',
+          'www.',
+          '1004644', // Common fake phishing contract pattern
+        ];
         
-        return !isFakeToken;
+        // Check all relevant fields for suspicious patterns
+        const isSuspicious = suspiciousPatterns.some(pattern => 
+          symbol.includes(pattern) ||
+          fromAddress.includes(pattern) ||
+          toAddress.includes(pattern) ||
+          tokenAddress.includes(pattern)
+        );
+        
+        // For native transactions (interactions), check if it's going to a suspicious contract
+        if (tx.type === 'native' && parseFloat(tx.value) === 0) {
+          return !isSuspicious;
+        }
+        
+        // For ERC20 transfers, also filter suspicious tokens
+        return !isSuspicious;
       });
     }
 
