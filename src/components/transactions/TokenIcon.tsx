@@ -27,9 +27,9 @@ export const TokenIcon = ({ logoUrl, symbol, className = "h-8 w-8", address, net
     }
   }, [logoUrl, address, network]);
 
-  // Try to fetch logo from Moralis when initial logo fails or is missing
+  // Try to fetch logo from TrustWallet CDN first, then Moralis when initial logo fails or is missing
   useEffect(() => {
-    const fetchMoralisLogo = async () => {
+    const fetchTokenLogo = async () => {
       if (!address || !network) {
         console.log(`TokenIcon: Missing address or network for ${symbol}`);
         return;
@@ -42,33 +42,54 @@ export const TokenIcon = ({ logoUrl, symbol, className = "h-8 w-8", address, net
       const networkLower = (network || '').toLowerCase();
       console.log(`TokenIcon: Attempting to fetch logo for ${symbol} on ${network} (address: ${address})`);
       
-      // Hardcoded fallbacks for Mantle tokens
-      if (networkLower.includes('mantle') && address) {
-        const mantleTokenLogos: { [key: string]: string } = {
-          '0x78c1b0c915c4faa5fffa6cabf0219da63d7f4cb8': 'https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png',
-          '0x09bc4e0d864854c6afb6eb9a9cdf58ac190d0df9': 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
-          '0xdeaddeaddeaddeaddeaddeaddeaddeaddead1111': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
-          '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000': 'https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png',
-        };
-        
-        const logo = mantleTokenLogos[address.toLowerCase()];
-        if (logo) {
-          console.log(`TokenIcon: Using hardcoded Mantle logo for ${symbol}`);
-          setFallbackSrc(logo);
-          setImageError(false);
-          setIsLoading(true);
-          return;
-        }
-      }
-      
-      // Skip native/dead address tokens for other networks
+      // Skip native/dead address tokens
       if (address === '0x0000000000000000000000000000000000000000' || 
           address?.toLowerCase().includes('dead')) {
         console.log(`TokenIcon: Skipping dead/native address for ${symbol}`);
         return;
       }
       
-      // Map network/chain codes to Moralis chain IDs - exact matches first
+      // Map network/chain codes to TrustWallet blockchain names
+      const networkToTrustWallet: { [key: string]: string } = {
+        'eth': 'ethereum',
+        'ethereum': 'ethereum',
+        'polygon': 'polygon',
+        'bsc': 'smartchain',
+        'binance': 'smartchain',
+        'avalanche': 'avalanchec',
+        'arbitrum': 'arbitrum',
+        'optimism': 'optimism',
+        'base': 'base',
+        'fantom': 'fantom',
+        'linea': 'linea',
+        'cronos': 'cronos',
+        'gnosis': 'xdai',
+        'moonbeam': 'moonbeam',
+        'moonriver': 'moonriver',
+      };
+      
+      const trustWalletChain = networkToTrustWallet[networkLower];
+      
+      // Try TrustWallet CDN first
+      if (trustWalletChain && address) {
+        const trustWalletUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletChain}/assets/${address}/logo.png`;
+        console.log(`TokenIcon: Trying TrustWallet CDN: ${trustWalletUrl}`);
+        
+        try {
+          const response = await fetch(trustWalletUrl, { method: 'HEAD' });
+          if (response.ok) {
+            console.log(`TokenIcon: Found logo on TrustWallet CDN for ${symbol}`);
+            setFallbackSrc(trustWalletUrl);
+            setImageError(false);
+            setIsLoading(true);
+            return;
+          }
+        } catch (error) {
+          console.log(`TokenIcon: TrustWallet CDN failed for ${symbol}, trying Moralis`);
+        }
+      }
+      
+      // Map network/chain codes to Moralis chain IDs as fallback
       const networkToMoralis: { [key: string]: string } = {
         'eth': '0x1',
         'ethereum': '0x1',
@@ -92,8 +113,7 @@ export const TokenIcon = ({ logoUrl, symbol, className = "h-8 w-8", address, net
         'pulsechain': '0x171',
       };
       
-      // Try exact match first
-      let chainId = networkToMoralis[networkLower];
+      const chainId = networkToMoralis[networkLower];
       
       if (!chainId) {
         console.error(`TokenIcon: No Moralis chain ID found for network: ${network}`);
@@ -133,7 +153,7 @@ export const TokenIcon = ({ logoUrl, symbol, className = "h-8 w-8", address, net
       }
     };
     
-    fetchMoralisLogo();
+    fetchTokenLogo();
   }, [address, network, imageError, fallbackSrc, symbol]);
 
   const logoSrc = fallbackSrc || logoUrl;

@@ -15,6 +15,7 @@ import { TokenIcon } from "@/components/transactions/TokenIcon";
 
 const Transactions = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [networkFilter, setNetworkFilter] = useState("");
   const [hideUnknownTokens, setHideUnknownTokens] = useState(false);
   const [hideLowValue, setHideLowValue] = useState(false);
   const [searchParams] = useSearchParams();
@@ -139,6 +140,36 @@ const Transactions = () => {
       } else if (chain === "base") {
         key = "ETH-base";
         token = { symbol: "ETH", network: "base" };
+      } else if (chain === "linea") {
+        key = "ETH-linea";
+        token = { symbol: "ETH", network: "linea" };
+      } else if (chain === "cronos") {
+        key = "CRO-cronos";
+        token = { symbol: "CRO", network: "cronos" };
+      } else if (chain === "gnosis") {
+        key = "XDAI-gnosis";
+        token = { symbol: "XDAI", network: "gnosis" };
+      } else if (chain === "chiliz") {
+        key = "CHZ-chiliz";
+        token = { symbol: "CHZ", network: "chiliz" };
+      } else if (chain === "moonbeam") {
+        key = "GLMR-moonbeam";
+        token = { symbol: "GLMR", network: "moonbeam" };
+      } else if (chain === "moonriver") {
+        key = "MOVR-moonriver";
+        token = { symbol: "MOVR", network: "moonriver" };
+      } else if (chain === "flow") {
+        key = "FLOW-flow";
+        token = { symbol: "FLOW", network: "flow" };
+      } else if (chain === "ronin") {
+        key = "RON-ronin";
+        token = { symbol: "RON", network: "ronin" };
+      } else if (chain === "lisk") {
+        key = "LSK-lisk";
+        token = { symbol: "LSK", network: "lisk" };
+      } else if (chain === "pulsechain") {
+        key = "PLS-pulsechain";
+        token = { symbol: "PLS", network: "pulsechain" };
       } else {
         key = "ETH-ethereum";
         token = { symbol: "ETH", network: "ethereum" };
@@ -178,6 +209,16 @@ const Transactions = () => {
     if (chain === "arbitrum") return "ETH";
     if (chain === "optimism") return "ETH";
     if (chain === "base") return "ETH";
+    if (chain === "linea") return "ETH";
+    if (chain === "cronos") return "CRO";
+    if (chain === "gnosis") return "XDAI";
+    if (chain === "chiliz") return "CHZ";
+    if (chain === "moonbeam") return "GLMR";
+    if (chain === "moonriver") return "MOVR";
+    if (chain === "flow") return "FLOW";
+    if (chain === "ronin") return "RON";
+    if (chain === "lisk") return "LSK";
+    if (chain === "pulsechain") return "PLS";
     return "ETH";
   };
 
@@ -190,6 +231,16 @@ const Transactions = () => {
     if (chain === "arbitrum") return "Arbitrum";
     if (chain === "optimism") return "Optimism";
     if (chain === "base") return "Base";
+    if (chain === "linea") return "Linea";
+    if (chain === "cronos") return "Cronos";
+    if (chain === "gnosis") return "Gnosis";
+    if (chain === "chiliz") return "Chiliz";
+    if (chain === "moonbeam") return "Moonbeam";
+    if (chain === "moonriver") return "Moonriver";
+    if (chain === "flow") return "Flow";
+    if (chain === "ronin") return "Ronin";
+    if (chain === "lisk") return "Lisk";
+    if (chain === "pulsechain") return "Pulsechain";
     return chain;
   };
 
@@ -202,6 +253,16 @@ const Transactions = () => {
     if (chain === "arbitrum") return `https://arbiscan.io/tx/${hash}`;
     if (chain === "optimism") return `https://optimistic.etherscan.io/tx/${hash}`;
     if (chain === "base") return `https://basescan.org/tx/${hash}`;
+    if (chain === "linea") return `https://lineascan.build/tx/${hash}`;
+    if (chain === "cronos") return `https://cronoscan.com/tx/${hash}`;
+    if (chain === "gnosis") return `https://gnosisscan.io/tx/${hash}`;
+    if (chain === "chiliz") return `https://chiliscan.com/tx/${hash}`;
+    if (chain === "moonbeam") return `https://moonscan.io/tx/${hash}`;
+    if (chain === "moonriver") return `https://moonriver.moonscan.io/tx/${hash}`;
+    if (chain === "flow") return `https://flowscan.io/tx/${hash}`;
+    if (chain === "ronin") return `https://app.roninchain.com/tx/${hash}`;
+    if (chain === "lisk") return `https://blockscout.lisk.com/tx/${hash}`;
+    if (chain === "pulsechain") return `https://scan.pulsechain.com/tx/${hash}`;
     return `https://etherscan.io/tx/${hash}`;
   };
 
@@ -274,10 +335,17 @@ const Transactions = () => {
   const filteredTransactions = useMemo(() => {
     let filtered = allTransactions;
 
-    // Search filter
+    // Search filter (hash)
     if (searchQuery) {
       filtered = filtered.filter((tx) =>
         tx.hash.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Network filter
+    if (networkFilter) {
+      filtered = filtered.filter((tx) =>
+        tx.chain.toLowerCase() === networkFilter.toLowerCase()
       );
     }
 
@@ -368,7 +436,14 @@ const Transactions = () => {
     }
 
     return filtered;
-  }, [allTransactions, searchQuery, hideUnknownTokens, hideLowValue, tokenPrices]);
+  }, [allTransactions, searchQuery, networkFilter, hideUnknownTokens, hideLowValue, tokenPrices]);
+
+  // Get unique networks from transactions
+  const availableNetworks = useMemo(() => {
+    const networks = new Set<string>();
+    allTransactions.forEach(tx => networks.add(tx.chain));
+    return Array.from(networks).sort();
+  }, [allTransactions]);
 
   // Group transactions by hash to detect swaps, then by date
   const groupedTransactions = useMemo(() => {
@@ -490,6 +565,20 @@ const Transactions = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 glass border-border/40"
           />
+        </div>
+        <div className="relative min-w-[180px]">
+          <select
+            value={networkFilter}
+            onChange={(e) => setNetworkFilter(e.target.value)}
+            className="w-full h-10 px-3 rounded-md border border-border/40 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">All Networks</option>
+            {availableNetworks.map(network => (
+              <option key={network} value={network}>
+                {getChainName(network)}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="flex gap-2">
           <Button
@@ -674,10 +763,14 @@ const Transactions = () => {
                               const { amount, usdValue, symbol } = formatValue(tx);
                               return (
                                 <>
-                                  <p className={`text-base font-semibold ${getAmountColor()}`}>
-                                    {category === 'sent' ? '-' : category === 'received' ? '+' : ''}
-                                    {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
-                                  </p>
+                                  <div className="flex items-center gap-1 justify-end">
+                                    {category === 'sent' && <ArrowUpRight className="h-3.5 w-3.5 text-destructive" />}
+                                    {category === 'received' && <ArrowDownLeft className="h-3.5 w-3.5 text-success" />}
+                                    <p className={`text-base font-semibold ${getAmountColor()}`}>
+                                      {category === 'sent' ? '-' : category === 'received' ? '+' : ''}
+                                      {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
+                                    </p>
+                                  </div>
                                   {usdValue > 0 && (
                                     <p className="text-sm text-muted-foreground">
                                       {formatUSD(usdValue)}
