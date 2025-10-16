@@ -308,10 +308,17 @@ const Transactions = () => {
       byHash[tx.hash].push(tx);
     });
 
+    // Track which hashes we've already added to avoid duplicates
+    const processedHashes = new Set<string>();
+    
     // Process each transaction group and organize by date
     const groups: { [date: string]: Array<UnifiedTransaction[] | UnifiedTransaction> } = {};
     
-    Object.values(byHash).forEach((txGroup) => {
+    Object.entries(byHash).forEach(([hash, txGroup]) => {
+      // Skip if already processed
+      if (processedHashes.has(hash)) return;
+      processedHashes.add(hash);
+      
       const firstTx = txGroup[0];
       const date = new Date(firstTx.block_timestamp);
       const dateKey = date.toLocaleDateString('en-GB', { 
@@ -324,38 +331,57 @@ const Transactions = () => {
         groups[dateKey] = [];
       }
       
-      // Detect if this is a swap transaction
-      if (txGroup.length >= 2) {
-        // Count sends and receives from/to wallet
-        const sentTxs = txGroup.filter(tx => tx.from_address.toLowerCase() === lowerWallet);
-        const receivedTxs = txGroup.filter(tx => tx.to_address.toLowerCase() === lowerWallet);
-        
-        // It's a swap if user both sent something AND received something
-        if (sentTxs.length > 0 && receivedTxs.length > 0) {
-          // Combine sent and received for the swap display
-          const swapPair: UnifiedTransaction[] = [];
-          
-          // Add the primary sent token (usually the first one)
-          if (sentTxs.length > 0) swapPair.push(sentTxs[0]);
-          
-          // Add the primary received token (usually the first one)
-          if (receivedTxs.length > 0) swapPair.push(receivedTxs[0]);
-          
-          groups[dateKey].push(swapPair);
-        } else {
-          // Multiple txs in same hash but not a swap (e.g., multiple transfers)
-          // Add each unique transaction that involves the wallet
-          txGroup.forEach(tx => {
-            const isSent = tx.from_address.toLowerCase() === lowerWallet;
-            const isReceived = tx.to_address.toLowerCase() === lowerWallet;
-            if (isSent || isReceived) {
-              groups[dateKey].push(tx);
-            }
-          });
+      // Filter to only transactions involving the wallet
+      const relevantTxs = txGroup.filter(tx => 
+        tx.from_address.toLowerCase() === lowerWallet || 
+        tx.to_address.toLowerCase() === lowerWallet
+      );
+      
+      if (relevantTxs.length === 0) return;
+      
+      // Separate sends and receives
+      const sentTxs = relevantTxs.filter(tx => tx.from_address.toLowerCase() === lowerWallet);
+      const receivedTxs = relevantTxs.filter(tx => tx.to_address.toLowerCase() === lowerWallet);
+      
+      // Remove approvals (zero value transfers) from consideration
+      const nonApprovalSent = sentTxs.filter(tx => {
+        if (tx.type === 'erc20') {
+          const decimals = parseInt(tx.token_decimals || '18');
+          const amount = parseFloat(tx.value) / Math.pow(10, decimals);
+          return amount > 0.000001;
         }
-      } else {
-        // Single transaction
-        groups[dateKey].push(firstTx);
+        return parseFloat(tx.value) > 0;
+      });
+      
+      const nonApprovalReceived = receivedTxs.filter(tx => {
+        if (tx.type === 'erc20') {
+          const decimals = parseInt(tx.token_decimals || '18');
+          const amount = parseFloat(tx.value) / Math.pow(10, decimals);
+          return amount > 0.000001;
+        }
+        return parseFloat(tx.value) > 0;
+      });
+      
+      // Detect swaps: user both sent AND received non-zero amounts
+      if (nonApprovalSent.length > 0 && nonApprovalReceived.length > 0) {
+        // This is a swap - create a pair with one sent and one received
+        const swapPair: UnifiedTransaction[] = [nonApprovalSent[0], nonApprovalReceived[0]];
+        groups[dateKey].push(swapPair);
+      } 
+      // Only sends (no receives)
+      else if (nonApprovalSent.length > 0) {
+        // Add only the first/primary send to avoid duplicates
+        groups[dateKey].push(nonApprovalSent[0]);
+      }
+      // Only receives (no sends)
+      else if (nonApprovalReceived.length > 0) {
+        // Add only the first/primary receive to avoid duplicates
+        groups[dateKey].push(nonApprovalReceived[0]);
+      }
+      // Only approvals or zero-value transactions
+      else if (relevantTxs.length > 0) {
+        // Show the first one
+        groups[dateKey].push(relevantTxs[0]);
       }
     });
 
