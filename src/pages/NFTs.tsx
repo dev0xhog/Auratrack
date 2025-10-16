@@ -1,18 +1,24 @@
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { Image } from "lucide-react";
+import { Image, LayoutGrid, List, Search } from "lucide-react";
 import { useMoralisNFTsByChain, type MoralisNFT } from "@/hooks/useMoralisNFTsByChain";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams } from "react-router-dom";
 import { isSpamNFT } from "@/lib/nftHelpers";
 import { NFTCard } from "@/components/nft/NFTCard";
 import { NFTNetworkFilter } from "@/components/nft/NFTNetworkFilter";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { formatUSD } from "@/lib/formatters";
+import { NFTListView } from "@/components/nft/NFTListView";
 
 const NFTs = () => {
   const [searchParams] = useSearchParams();
   const walletAddress = searchParams.get("address") || undefined;
   const { data: nftsByChain, isLoading, error } = useMoralisNFTsByChain(walletAddress);
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Filter spam NFTs
   const getNonSpamNFTs = (nfts: MoralisNFT[]) => {
@@ -31,7 +37,7 @@ const NFTs = () => {
     return data.sort((a, b) => b.count - a.count);
   }, [nftsByChain]);
 
-  // Filter NFTs with chain info
+  // Filter NFTs with chain info and search
   const displayNFTs = useMemo(() => {
     const nftsWithChain = selectedNetwork
       ? (nftsByChain?.[selectedNetwork] || []).map(nft => ({ ...nft, chain: selectedNetwork }))
@@ -39,8 +45,25 @@ const NFTs = () => {
           nfts.map(nft => ({ ...nft, chain }))
         );
     
-    return nftsWithChain.filter(nft => !isSpamNFT(nft));
-  }, [nftsByChain, selectedNetwork]);
+    const nonSpamNfts = nftsWithChain.filter(nft => !isSpamNFT(nft));
+    
+    if (!searchQuery.trim()) return nonSpamNfts;
+    
+    const query = searchQuery.toLowerCase();
+    return nonSpamNfts.filter(nft => {
+      const name = nft.name?.toLowerCase() || "";
+      const symbol = nft.symbol?.toLowerCase() || "";
+      const description = nft.normalized_metadata?.description?.toLowerCase() || "";
+      return name.includes(query) || symbol.includes(query) || description.includes(query);
+    });
+  }, [nftsByChain, selectedNetwork, searchQuery]);
+
+  // Calculate total asset value
+  const totalAssetValue = useMemo(() => {
+    return displayNFTs.reduce((total, nft) => {
+      return total + (nft.floor_price_usd || 0);
+    }, 0);
+  }, [displayNFTs]);
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -99,12 +122,49 @@ const NFTs = () => {
             onNetworkSelect={setSelectedNetwork}
           />
 
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1 sm:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search NFTs by name, collection, or description..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={viewMode === "grid" ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => setViewMode("grid")}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => setViewMode("list")}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <Card className="px-6 py-3">
+              <p className="text-xs text-muted-foreground mb-1">Total Assets Value</p>
+              <p className="text-2xl font-bold">{formatUSD(totalAssetValue)}</p>
+            </Card>
+          </div>
+
           {displayNFTs.length === 0 ? (
             <Card className="p-12 text-center">
               <Image className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">No NFTs found</p>
+              <p className="text-muted-foreground">
+                {searchQuery ? "No NFTs match your search" : "No NFTs found"}
+              </p>
             </Card>
-          ) : (
+          ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {displayNFTs.map((nft, index) => (
                 <NFTCard 
@@ -113,6 +173,8 @@ const NFTs = () => {
                 />
               ))}
             </div>
+          ) : (
+            <NFTListView nfts={displayNFTs} />
           )}
         </>
       )}
