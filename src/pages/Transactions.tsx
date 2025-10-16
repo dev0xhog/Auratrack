@@ -308,6 +308,8 @@ const Transactions = () => {
 
   // Group transactions by hash to detect swaps, then by date
   const groupedTransactions = useMemo(() => {
+    if (!walletAddress) return {};
+    
     // First group by hash to detect swaps
     const byHash: { [hash: string]: typeof filteredTransactions } = {};
     filteredTransactions.forEach((tx) => {
@@ -333,16 +335,41 @@ const Transactions = () => {
         groups[dateKey] = [];
       }
       
-      // If multiple transactions with same hash, it's likely a swap
-      if (txGroup.length > 1 && txGroup.some(tx => tx.type === 'erc20')) {
-        groups[dateKey].push(txGroup);
+      // Only treat as swap if there are exactly 2 ERC20 transfers with opposite directions
+      // (one sent FROM user, one received TO user)
+      if (txGroup.length >= 2 && txGroup.every(tx => tx.type === 'erc20')) {
+        const hasSent = txGroup.some(tx => tx.from_address.toLowerCase() === walletAddress.toLowerCase());
+        const hasReceived = txGroup.some(tx => tx.to_address.toLowerCase() === walletAddress.toLowerCase());
+        
+        // It's a swap only if user both sent AND received tokens
+        if (hasSent && hasReceived) {
+          // Filter to only show the sent and received transactions
+          const swapTxs = txGroup.filter(tx => 
+            tx.from_address.toLowerCase() === walletAddress.toLowerCase() ||
+            tx.to_address.toLowerCase() === walletAddress.toLowerCase()
+          );
+          if (swapTxs.length >= 2) {
+            groups[dateKey].push(swapTxs);
+          } else {
+            // Not a valid swap, add individually
+            txGroup.forEach(tx => groups[dateKey].push(tx));
+          }
+        } else {
+          // Not a swap, just multiple transfers in same tx - add individually
+          txGroup.forEach(tx => groups[dateKey].push(tx));
+        }
       } else {
-        groups[dateKey].push(firstTx);
+        // Single transaction or mixed types - add individually
+        if (txGroup.length === 1) {
+          groups[dateKey].push(firstTx);
+        } else {
+          txGroup.forEach(tx => groups[dateKey].push(tx));
+        }
       }
     });
 
     return groups;
-  }, [filteredTransactions]);
+  }, [filteredTransactions, walletAddress]);
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
