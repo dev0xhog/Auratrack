@@ -38,11 +38,15 @@ const Transactions = () => {
     receipt_status?: string;
     type: 'native' | 'erc20';
     token_symbol?: string;
+    token_name?: string;
     token_logo?: string;
     token_decimals?: string;
     token_address?: string;
     from_address_label?: string;
     to_address_label?: string;
+    possible_spam?: boolean;
+    security_score?: number | null;
+    verified_contract?: boolean;
   };
 
   // Enhanced transaction category type
@@ -83,9 +87,13 @@ const Transactions = () => {
             chain,
             type: 'erc20',
             token_symbol: transfer.token_symbol,
+            token_name: transfer.token_name,
             token_logo: transfer.token_logo,
             token_decimals: transfer.token_decimals,
             token_address: transfer.token_address,
+            possible_spam: transfer.possible_spam,
+            security_score: transfer.security_score,
+            verified_contract: transfer.verified_contract,
           });
         });
       });
@@ -273,20 +281,31 @@ const Transactions = () => {
       );
     }
 
-    // Hide unknown tokens - filter out tokens with suspicious names and fake contracts
+    // Hide unknown tokens - use Moralis spam detection + pattern matching
     if (hideUnknownTokens) {
       filtered = filtered.filter((tx) => {
+        // Use Moralis's possible_spam field (most reliable)
+        if (tx.possible_spam === true) {
+          return false;
+        }
+        
+        // Filter low security score tokens (likely scams)
+        if (tx.security_score !== null && tx.security_score !== undefined && tx.security_score < 50) {
+          return false;
+        }
+        
+        // Additional pattern matching as fallback
         const symbol = (tx.token_symbol || '').toLowerCase();
+        const tokenName = (tx.token_name || '').toLowerCase();
         const fromAddress = (tx.from_address || '').toLowerCase();
         const toAddress = (tx.to_address || '').toLowerCase();
         const tokenAddress = (tx.token_address || '').toLowerCase();
         
-        // List of suspicious patterns
         const suspiciousPatterns = [
           'fake',
           'phishing',
           'visit',
-          'claim',
+          'claim on',
           'spam',
           'scam',
           'airdrop',
@@ -295,23 +314,19 @@ const Transactions = () => {
           '.org',
           'http',
           'www.',
-          '1004644', // Common fake phishing contract pattern
+          '1004644',
+          'reward',
+          'bonus',
         ];
         
-        // Check all relevant fields for suspicious patterns
         const isSuspicious = suspiciousPatterns.some(pattern => 
           symbol.includes(pattern) ||
+          tokenName.includes(pattern) ||
           fromAddress.includes(pattern) ||
           toAddress.includes(pattern) ||
           tokenAddress.includes(pattern)
         );
         
-        // For native transactions (interactions), check if it's going to a suspicious contract
-        if (tx.type === 'native' && parseFloat(tx.value) === 0) {
-          return !isSuspicious;
-        }
-        
-        // For ERC20 transfers, also filter suspicious tokens
         return !isSuspicious;
       });
     }

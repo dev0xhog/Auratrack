@@ -13,6 +13,9 @@ export interface MoralisTokenTransfer {
   token_logo?: string;
   token_decimals?: string;
   chain: string;
+  possible_spam?: boolean;
+  security_score?: number | null;
+  verified_contract?: boolean;
 }
 
 interface MoralisTokenTransfersResponse {
