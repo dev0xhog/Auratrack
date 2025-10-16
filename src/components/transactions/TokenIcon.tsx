@@ -80,6 +80,16 @@ export const TokenIcon = ({ logoUrl, symbol, className = "h-8 w-8", address, net
         'optimism': '0xa',
         'base': '0x2105',
         'fantom': '0xfa',
+        'linea': '0xe708',
+        'cronos': '0x19',
+        'gnosis': '0x64',
+        'chiliz': '0x15b38',
+        'moonbeam': '0x504',
+        'moonriver': '0x505',
+        'flow': '0x2eb',
+        'ronin': '0x7e4',
+        'lisk': '0x46f',
+        'pulsechain': '0x171',
       };
       
       // Try exact match first

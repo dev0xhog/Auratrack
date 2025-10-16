@@ -18,6 +18,16 @@ export const NetworkIcon = ({ chain, className = "h-5 w-5" }: NetworkIconProps) 
     if (chain === "arbitrum") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/arbitrum/info/logo.png";
     if (chain === "optimism") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/optimism/info/logo.png";
     if (chain === "base") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/info/logo.png";
+    if (chain === "linea") return "https://assets.coingecko.com/coins/images/31038/standard/linea.png";
+    if (chain === "cronos") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/cronos/info/logo.png";
+    if (chain === "gnosis") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/xdai/info/logo.png";
+    if (chain === "chiliz") return "https://assets.coingecko.com/coins/images/8834/standard/Chiliz.png";
+    if (chain === "moonbeam") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/moonbeam/info/logo.png";
+    if (chain === "moonriver") return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/moonriver/info/logo.png";
+    if (chain === "flow") return "https://assets.coingecko.com/coins/images/13446/standard/5f6294c0c7a8cda55cb1c936_Flow_Wordmark.png";
+    if (chain === "ronin") return "https://assets.coingecko.com/coins/images/20009/standard/ronin.png";
+    if (chain === "lisk") return "https://assets.coingecko.com/coins/images/385/standard/Lisk_Symbol.png";
+    if (chain === "pulsechain") return "https://assets.coingecko.com/coins/images/26899/standard/pulsechain.jpeg";
     return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png";
   };
 
@@ -30,6 +40,16 @@ export const NetworkIcon = ({ chain, className = "h-5 w-5" }: NetworkIconProps) 
     if (chain === "arbitrum") return "#28A0F0";
     if (chain === "optimism") return "#FF0420";
     if (chain === "base") return "#0052FF";
+    if (chain === "linea") return "#121212";
+    if (chain === "cronos") return "#002D74";
+    if (chain === "gnosis") return "#04795B";
+    if (chain === "chiliz") return "#CD0124";
+    if (chain === "moonbeam") return "#53CBC9";
+    if (chain === "moonriver") return "#F2B705";
+    if (chain === "flow") return "#00EF8B";
+    if (chain === "ronin") return "#1273EA";
+    if (chain === "lisk") return "#0D47A1";
+    if (chain === "pulsechain") return "#32D4F4";
     return "#627EEA";
   };
 
@@ -42,6 +62,16 @@ export const NetworkIcon = ({ chain, className = "h-5 w-5" }: NetworkIconProps) 
     if (chain === "arbitrum") return "AR";
     if (chain === "optimism") return "OP";
     if (chain === "base") return "BA";
+    if (chain === "linea") return "L";
+    if (chain === "cronos") return "CR";
+    if (chain === "gnosis") return "GN";
+    if (chain === "chiliz") return "CH";
+    if (chain === "moonbeam") return "MB";
+    if (chain === "moonriver") return "MR";
+    if (chain === "flow") return "FL";
+    if (chain === "ronin") return "RO";
+    if (chain === "lisk") return "LS";
+    if (chain === "pulsechain") return "PL";
     return "E";
   };
 

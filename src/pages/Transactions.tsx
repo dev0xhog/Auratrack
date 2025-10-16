@@ -529,14 +529,14 @@ const Transactions = () => {
             Failed to load transactions. Please check your connection and try again.
           </p>
           <p className="text-xs text-muted-foreground">
-            Note: Transactions are fetched from 8 networks: Ethereum, Polygon, BSC, Avalanche, Fantom, Arbitrum, Optimism, and Base
+            Note: Transactions are fetched from 18 networks including Ethereum, Polygon, BSC, Avalanche, Fantom, Arbitrum, Optimism, Base, Linea, Cronos, Gnosis, Chiliz, Moonbeam, Moonriver, Flow, Ronin, Lisk, and Pulsechain
           </p>
         </Card>
       ) : Object.keys(groupedTransactions).length === 0 ? (
         <Card className="p-12 text-center">
           <p className="text-muted-foreground mb-2">No transactions found.</p>
           <p className="text-xs text-muted-foreground">
-            Checked across 8 networks: Ethereum, Polygon, BSC, Avalanche, Fantom, Arbitrum, Optimism, and Base
+            Checked across 18 networks including Ethereum, Polygon, BSC, Avalanche, Fantom, Arbitrum, Optimism, Base, Linea, Cronos, Gnosis, Chiliz, Moonbeam, Moonriver, Flow, Ronin, Lisk, and Pulsechain
           </p>
         </Card>
       ) : (
@@ -659,6 +659,11 @@ const Transactions = () => {
                                     {isSent ? '-' : '+'}
                                     {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
                                   </p>
+                                  {usdValue > 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                      {formatUSD(usdValue)}
+                                    </p>
+                                  )}
                                 </div>
                               );
                             })}
