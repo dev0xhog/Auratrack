@@ -2,7 +2,8 @@ import { usePortfolioStrategies } from "@/hooks/usePortfolioStrategies";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, AlertCircle, Sparkles, ExternalLink } from "lucide-react";
+import { TrendingUp, AlertCircle, Sparkles, ExternalLink, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface PortfolioStrategiesSectionProps {
   address?: string;
@@ -10,25 +11,65 @@ interface PortfolioStrategiesSectionProps {
 
 export const PortfolioStrategiesSection = ({ address }: PortfolioStrategiesSectionProps) => {
   const { data, isLoading, error } = usePortfolioStrategies(address);
+  const [loadingStep, setLoadingStep] = useState(0);
 
   // Strategies are already flattened by the hook
   const strategies = data?.strategies || [];
 
-  // Loading state
+  // Shortened address for display
+  const shortenedAddress = address 
+    ? `${address.slice(0, 5)}...${address.slice(-3)}` 
+    : "0x0ed...413";
+
+  const loadingSteps = [
+    `Start processing ${shortenedAddress}...`,
+    "Analyzing portfolio...",
+    "Checking risk factors...",
+    "Looking for suitable dApps or platforms...",
+    "Assessing best strategies...",
+    "Processing, please wait..."
+  ];
+
+  // Cycle through loading steps
+  useEffect(() => {
+    if (isLoading) {
+      setLoadingStep(0);
+      const interval = setInterval(() => {
+        setLoadingStep((prev) => (prev + 1) % loadingSteps.length);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [isLoading, loadingSteps.length]);
+
+  // Loading state with step-by-step messages
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Sparkles className="h-5 w-5 animate-pulse" />
-          <span className="text-sm">Analyzing wallet...</span>
-        </div>
-        {[...Array(2)].map((_, i) => (
-          <Card key={i} className="bg-card border-border">
-            <CardContent className="p-6">
-              <Skeleton className="h-32 w-full" />
-            </CardContent>
-          </Card>
-        ))}
+        <Card className="bg-card border-border">
+          <CardContent className="p-8">
+            <div className="space-y-4">
+              {loadingSteps.map((step, index) => (
+                <div
+                  key={index}
+                  className={`flex items-center gap-3 transition-all duration-300 ${
+                    index <= loadingStep 
+                      ? "opacity-100 text-foreground" 
+                      : "opacity-30 text-muted-foreground"
+                  }`}
+                >
+                  {index === loadingStep ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  ) : index < loadingStep ? (
+                    <Sparkles className="h-4 w-4 text-success" />
+                  ) : (
+                    <div className="h-4 w-4 rounded-full border-2 border-muted" />
+                  )}
+                  <span className="text-sm font-medium">{step}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -121,13 +162,19 @@ export const PortfolioStrategiesSection = ({ address }: PortfolioStrategiesSecti
                       key={actionIdx}
                       className="bg-secondary rounded-lg p-4 border border-border space-y-3"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-foreground">
-                          {tokens.join(", ")}
-                        </span>
-                        <Badge variant="outline" className="text-xs">
-                          {action.operation}
-                        </Badge>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <span className="text-sm font-semibold text-foreground">
+                            {tokens.join(", ")}
+                          </span>
+                          {action.operation && (
+                            <div className="mt-2">
+                              <Badge variant="default" className="text-xs font-medium">
+                                Operation: {action.operation}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
                       <p className="text-sm text-muted-foreground">
