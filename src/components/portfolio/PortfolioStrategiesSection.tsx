@@ -35,7 +35,13 @@ export const PortfolioStrategiesSection = ({ address }: PortfolioStrategiesSecti
     if (isLoading) {
       setLoadingStep(0);
       const interval = setInterval(() => {
-        setLoadingStep((prev) => (prev + 1) % loadingSteps.length);
+        setLoadingStep((prev) => {
+          // Stop at the last step instead of looping
+          if (prev < loadingSteps.length - 1) {
+            return prev + 1;
+          }
+          return prev;
+        });
       }, 2000);
       return () => clearInterval(interval);
     }
