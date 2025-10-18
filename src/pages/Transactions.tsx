@@ -194,6 +194,9 @@ const Transactions = () => {
   }, [txsByChain, allTransactions]);
 
   const { data: tokenPrices } = useTokenPrices(tokenInfos);
+  
+  // Debug: Log token prices when they change
+  console.log('Token prices available:', tokenPrices ? Object.keys(tokenPrices).length : 0, tokenPrices);
 
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -280,9 +283,17 @@ const Transactions = () => {
     }
     
     // Uppercase symbol for price lookup (prices are stored with uppercase keys)
-    const price = tokenPrices?.[symbol.toUpperCase()]?.current_price || 0;
+    const symbolUpper = symbol.toUpperCase();
+    const tokenPrice = tokenPrices?.[symbolUpper];
+    const price = tokenPrice?.current_price || 0;
     const usdValue = amount * price;
-    return { amount, usdValue, symbol };
+    
+    // Debug logging
+    if (amount > 0 && !price) {
+      console.log(`No price found for ${symbol} (${symbolUpper}). Available prices:`, tokenPrices ? Object.keys(tokenPrices) : 'none');
+    }
+    
+    return { amount, usdValue, symbol, price };
   };
 
   // Enhanced transaction categorization
