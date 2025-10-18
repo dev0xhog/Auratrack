@@ -24,50 +24,67 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
       if (!tokens || tokens.length === 0) return {};
 
       const result: { [symbol: string]: TokenPrice } = {};
+      const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
 
-      // Get unique symbols
-      const uniqueSymbols = [...new Set(tokens.map(t => t.symbol.toUpperCase()))];
-      
-      try {
-        // Fetch all assets from CoinCap v2 API (free, no key needed)
-        const response = await fetch(
-          `https://api.coincap.io/v2/assets?limit=2000`,
-          {
-            headers: {
-              'Accept': 'application/json'
-            }
-          }
-        );
+      // Map chain names to Moralis chain identifiers
+      const chainMap: { [key: string]: string } = {
+        'ethereum': '0x1',
+        'eth': '0x1',
+        'polygon': '0x89',
+        'bsc': '0x38',
+        'avalanche': '0xa86a',
+        'fantom': '0xfa',
+        'arbitrum': '0xa4b1',
+        'optimism': '0xa',
+        'base': '0x2105',
+        'linea': '0xe708',
+      };
+
+      // Process each token
+      for (const token of tokens) {
+        const symbol = token.symbol.toUpperCase();
         
-        if (response.ok) {
-          const responseData = await response.json();
-          const assets = responseData.data || [];
-          
-          // Map assets to our token symbols
-          uniqueSymbols.forEach(symbol => {
-            const asset = assets.find((a: any) => 
-              a.symbol?.toUpperCase() === symbol.toUpperCase()
-            );
+        // Skip if we already have this price
+        if (result[symbol]) continue;
+
+        try {
+          // For ERC20 tokens with address
+          if (token.address && token.network) {
+            const chain = chainMap[token.network.toLowerCase()] || '0x1';
             
-            if (asset) {
-              result[symbol] = {
-                id: asset.id || symbol.toLowerCase(),
-                symbol: symbol,
-                name: asset.name || symbol,
-                current_price: parseFloat(asset.priceUsd || '0'),
-                price_change_percentage_24h: parseFloat(asset.changePercent24Hr || '0'),
-              };
+            const response = await fetch(
+              `https://deep-index.moralis.io/api/v2.2/erc20/${token.address}/price?chain=${chain}`,
+              {
+                headers: {
+                  "X-API-Key": apiKey,
+                },
+              }
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.usdPrice) {
+                result[symbol] = {
+                  id: token.address,
+                  symbol: symbol,
+                  name: data.tokenName || symbol,
+                  current_price: parseFloat(data.usdPrice),
+                  price_change_percentage_24h: parseFloat(data.usdPriceFormatted || '0'),
+                  logo: data.tokenLogo,
+                };
+                console.log(`Fetched price for ${symbol}:`, data.usdPrice);
+              }
             }
-          });
-          
-          console.log('Token prices fetched via CoinCap v2:', Object.keys(result).length, 'of', tokens.length, 'tokens');
-        } else {
-          console.error(`CoinCap v2 API error: ${response.status}`);
+            
+            // Add small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        } catch (error) {
+          console.error(`Error fetching price for ${symbol}:`, error);
         }
-      } catch (error) {
-        console.error("CoinCap v2 API fetch error:", error);
       }
 
+      console.log('Token prices fetched via Moralis:', Object.keys(result).length, 'of', tokens.length, 'tokens');
       return result;
     },
     enabled: tokens.length > 0,

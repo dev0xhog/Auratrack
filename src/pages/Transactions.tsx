@@ -748,9 +748,13 @@ const Transactions = () => {
                                     {isSent ? '-' : '+'}
                                     {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
                                   </p>
-                                  {usdValue > 0 && (
-                                    <p className="text-xs text-muted-foreground">
+                                  {usdValue > 0 ? (
+                                    <p className="text-xs text-muted-foreground/70">
                                       {formatUSD(usdValue)}
+                                    </p>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground/50">
+                                      Price unavailable
                                     </p>
                                   )}
                                 </div>
@@ -771,9 +775,13 @@ const Transactions = () => {
                                       {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
                                     </p>
                                   </div>
-                                  {usdValue > 0 && (
-                                    <p className="text-sm text-muted-foreground">
+                                  {usdValue > 0 ? (
+                                    <p className="text-sm text-muted-foreground/70">
                                       {formatUSD(usdValue)}
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm text-muted-foreground/50">
+                                      Price unavailable
                                     </p>
                                   )}
                                 </>
