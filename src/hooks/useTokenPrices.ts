@@ -24,67 +24,78 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
       if (!tokens || tokens.length === 0) return {};
 
       const result: { [symbol: string]: TokenPrice } = {};
-      const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
+      
+      // Map common symbols to CoinGecko IDs
+      const symbolToCoinGeckoId: { [key: string]: string } = {
+        'ETH': 'ethereum',
+        'BTC': 'bitcoin',
+        'BNB': 'binancecoin',
+        'MATIC': 'matic-network',
+        'AVAX': 'avalanche-2',
+        'FTM': 'fantom',
+        'CRO': 'crypto-com-chain',
+        'XDAI': 'xdai',
+        'CHZ': 'chiliz',
+        'GLMR': 'moonbeam',
+        'MOVR': 'moonriver',
+        'FLOW': 'flow',
+        'RON': 'ronin',
+        'LSK': 'lisk',
+        'PLS': 'pulsechain',
+        'USDT': 'tether',
+        'USDC': 'usd-coin',
+        'DAI': 'dai',
+        'WETH': 'weth',
+        'WBTC': 'wrapped-bitcoin',
+      };
 
-      console.log('Starting price fetch for tokens:', tokens.length);
+      // Get unique symbols and their CoinGecko IDs
+      const uniqueSymbols = [...new Set(tokens.map(t => t.symbol.toUpperCase()))];
+      const ids = uniqueSymbols
+        .map(symbol => symbolToCoinGeckoId[symbol] || symbol.toLowerCase())
+        .join(',');
 
-      // Process each token individually
-      for (const token of tokens) {
-        if (!token.address || !token.network) {
-          console.log(`Skipping token ${token.symbol} - missing address or network`);
-          continue;
-        }
-
-        const symbol = token.symbol.toUpperCase();
-        
-        // Skip if we already have this price
-        if (result[symbol]) {
-          console.log(`Already have price for ${symbol}`);
-          continue;
-        }
-
-        try {
-          const chain = token.network.toLowerCase();
-          const response = await fetch(
-            `https://deep-index.moralis.io/api/v2.2/erc20/${token.address}/price?chain=${chain}`,
-            {
-              headers: {
-                "X-API-Key": apiKey,
-                "Accept": "application/json",
-              },
+      try {
+        // Fetch from CoinGecko
+        const response = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
+          {
+            headers: {
+              'Accept': 'application/json'
             }
-          );
-
-          if (response.ok) {
-            const priceData = await response.json();
-            console.log(`Price data for ${symbol}:`, priceData);
-            
-            if (priceData.usdPrice !== undefined && priceData.usdPrice !== null) {
-              result[symbol] = {
-                id: token.address || symbol.toLowerCase(),
-                symbol: symbol,
-                name: priceData.tokenName || symbol,
-                current_price: parseFloat(priceData.usdPrice),
-                price_change_percentage_24h: parseFloat(priceData['24hrPercentChange'] || '0'),
-                logo: priceData.tokenLogo,
-              };
-              console.log(`✓ Fetched price for ${symbol}: $${priceData.usdPrice}`);
-            } else {
-              console.log(`✗ No usdPrice in response for ${symbol}`);
-            }
-          } else {
-            const errorText = await response.text();
-            console.error(`Moralis API error for ${symbol} (${chain}):`, response.status, errorText);
           }
-          
-          // Add delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 150));
-        } catch (error) {
-          console.error(`Error fetching price for ${symbol}:`, error);
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('CoinGecko response:', data);
+
+          // Map results back to symbols
+          uniqueSymbols.forEach(symbol => {
+            const coinId = symbolToCoinGeckoId[symbol] || symbol.toLowerCase();
+            const priceData = data[coinId];
+            
+            if (priceData && priceData.usd) {
+              result[symbol] = {
+                id: coinId,
+                symbol: symbol,
+                name: symbol,
+                current_price: priceData.usd,
+                price_change_percentage_24h: priceData.usd_24h_change || 0,
+              };
+              console.log(`✓ Price for ${symbol}: $${priceData.usd}`);
+            } else {
+              console.log(`✗ No price for ${symbol} (${coinId})`);
+            }
+          });
+        } else {
+          console.error('CoinGecko API error:', response.status, await response.text());
         }
+      } catch (error) {
+        console.error('Error fetching prices:', error);
       }
 
-      console.log(`✓ Token prices fetched: ${Object.keys(result).length} of ${tokens.length} tokens`);
+      console.log(`✓ Prices fetched: ${Object.keys(result).length} of ${uniqueSymbols.length}`);
       return result;
     },
     enabled: tokens.length > 0,
