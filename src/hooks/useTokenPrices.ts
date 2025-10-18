@@ -26,71 +26,65 @@ export const useTokenPrices = (tokens: TokenInfo[]) => {
       const result: { [symbol: string]: TokenPrice } = {};
       const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
 
-      // Group tokens by chain for batch processing
-      const tokensByChain: { [chain: string]: typeof tokens } = {};
-      
-      tokens.forEach(token => {
-        if (token.address && token.network) {
-          const chain = token.network.toLowerCase();
-          if (!tokensByChain[chain]) {
-            tokensByChain[chain] = [];
-          }
-          tokensByChain[chain].push(token);
-        }
-      });
+      console.log('Starting price fetch for tokens:', tokens.length);
 
-      // Process each chain's tokens using batch endpoint
-      for (const [chain, chainTokens] of Object.entries(tokensByChain)) {
+      // Process each token individually
+      for (const token of tokens) {
+        if (!token.address || !token.network) {
+          console.log(`Skipping token ${token.symbol} - missing address or network`);
+          continue;
+        }
+
+        const symbol = token.symbol.toUpperCase();
+        
+        // Skip if we already have this price
+        if (result[symbol]) {
+          console.log(`Already have price for ${symbol}`);
+          continue;
+        }
+
         try {
-          // Prepare token addresses for batch request
-          const tokenAddresses = chainTokens.map(t => ({ token_address: t.address }));
-          
+          const chain = token.network.toLowerCase();
           const response = await fetch(
-            `https://deep-index.moralis.io/api/v2.2/erc20/prices?chain=${chain}`,
+            `https://deep-index.moralis.io/api/v2.2/erc20/${token.address}/price?chain=${chain}`,
             {
-              method: 'POST',
               headers: {
                 "X-API-Key": apiKey,
-                "Content-Type": "application/json",
                 "Accept": "application/json",
               },
-              body: JSON.stringify({ tokens: tokenAddresses }),
             }
           );
 
           if (response.ok) {
-            const prices = await response.json();
+            const priceData = await response.json();
+            console.log(`Price data for ${symbol}:`, priceData);
             
-            // Map prices back to tokens
-            if (Array.isArray(prices)) {
-              prices.forEach((priceData: any, index: number) => {
-                const token = chainTokens[index];
-                if (token && priceData.usdPrice) {
-                  const symbol = token.symbol.toUpperCase();
-                  result[symbol] = {
-                    id: token.address || symbol.toLowerCase(),
-                    symbol: symbol,
-                    name: priceData.tokenName || symbol,
-                    current_price: parseFloat(priceData.usdPrice),
-                    price_change_percentage_24h: parseFloat(priceData['24hrPercentChange'] || '0'),
-                    logo: priceData.tokenLogo,
-                  };
-                  console.log(`Fetched price for ${symbol} on ${chain}:`, priceData.usdPrice);
-                }
-              });
+            if (priceData.usdPrice !== undefined && priceData.usdPrice !== null) {
+              result[symbol] = {
+                id: token.address || symbol.toLowerCase(),
+                symbol: symbol,
+                name: priceData.tokenName || symbol,
+                current_price: parseFloat(priceData.usdPrice),
+                price_change_percentage_24h: parseFloat(priceData['24hrPercentChange'] || '0'),
+                logo: priceData.tokenLogo,
+              };
+              console.log(`✓ Fetched price for ${symbol}: $${priceData.usdPrice}`);
+            } else {
+              console.log(`✗ No usdPrice in response for ${symbol}`);
             }
           } else {
-            console.error(`Moralis price API error for ${chain}:`, response.status, await response.text());
+            const errorText = await response.text();
+            console.error(`Moralis API error for ${symbol} (${chain}):`, response.status, errorText);
           }
           
-          // Small delay between chain batches
-          await new Promise(resolve => setTimeout(resolve, 200));
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 150));
         } catch (error) {
-          console.error(`Error fetching prices for ${chain}:`, error);
+          console.error(`Error fetching price for ${symbol}:`, error);
         }
       }
 
-      console.log('Token prices fetched via Moralis:', Object.keys(result).length, 'of', tokens.length, 'tokens');
+      console.log(`✓ Token prices fetched: ${Object.keys(result).length} of ${tokens.length} tokens`);
       return result;
     },
     enabled: tokens.length > 0,
