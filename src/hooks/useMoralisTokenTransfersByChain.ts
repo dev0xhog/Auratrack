@@ -79,7 +79,9 @@ export const useMoralisTokenTransfersByChain = (address: string | undefined) => 
 
       const transfersByChain: Record<string, MoralisTokenTransfer[]> = {};
       results.forEach(({ chain, transfers }) => {
-        transfersByChain[chain] = transfers;
+        if (transfers.length > 0) {
+          transfersByChain[chain] = transfers;
+        }
       });
 
       return transfersByChain;
