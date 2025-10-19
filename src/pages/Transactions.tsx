@@ -17,7 +17,6 @@ const Transactions = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [networkFilter, setNetworkFilter] = useState("");
   const [hideUnknownTokens, setHideUnknownTokens] = useState(false);
-  const [hideLowValue, setHideLowValue] = useState(false);
   const [searchParams] = useSearchParams();
   const walletAddress = searchParams.get("address") || undefined;
   
@@ -438,16 +437,8 @@ const Transactions = () => {
       });
     }
 
-    // Hide low value transactions
-    if (hideLowValue) {
-      filtered = filtered.filter((tx) => {
-        const { usdValue } = formatValue(tx);
-        return usdValue >= 0.1;
-      });
-    }
-
     return filtered;
-  }, [allTransactions, searchQuery, networkFilter, hideUnknownTokens, hideLowValue, tokenPrices]);
+  }, [allTransactions, searchQuery, networkFilter, hideUnknownTokens, tokenPrices]);
 
   // Get unique networks from transactions
   const availableNetworks = useMemo(() => {
@@ -591,24 +582,14 @@ const Transactions = () => {
             ))}
           </select>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant={hideUnknownTokens ? "default" : "outline"}
-            onClick={() => setHideUnknownTokens(!hideUnknownTokens)}
-            className="gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Hide Unknown Tokens
-          </Button>
-          <Button
-            variant={hideLowValue ? "default" : "outline"}
-            onClick={() => setHideLowValue(!hideLowValue)}
-            className="gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Hide TXs &lt;$0.1
-          </Button>
-        </div>
+        <Button
+          variant={hideUnknownTokens ? "default" : "outline"}
+          onClick={() => setHideUnknownTokens(!hideUnknownTokens)}
+          className="gap-2"
+        >
+          <Filter className="h-4 w-4" />
+          Hide Unknown Tokens
+        </Button>
       </div>
 
       {!walletAddress ? (
@@ -754,21 +735,12 @@ const Transactions = () => {
                               const { amount, usdValue, symbol } = formatValue(swapTx);
                               const isSent = swapTx.from_address.toLowerCase() === walletAddress.toLowerCase();
                               return (
-                                <div key={i}>
-                                  <p className={`text-sm font-semibold ${isSent ? 'text-destructive' : 'text-success'}`}>
-                                    {isSent ? '-' : '+'}
-                                    {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
-                                  </p>
-                                  {usdValue > 0 ? (
-                                    <p className="text-xs text-muted-foreground/70">
-                                      {formatUSD(usdValue)}
-                                    </p>
-                                  ) : (
-                                    <p className="text-xs text-muted-foreground/50">
-                                      Price unavailable
-                                    </p>
-                                  )}
-                                </div>
+                                 <div key={i}>
+                                   <p className={`text-sm font-semibold ${isSent ? 'text-destructive' : 'text-success'}`}>
+                                     {isSent ? '-' : '+'}
+                                     {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
+                                   </p>
+                                 </div>
                               );
                             })}
                           </div>
@@ -778,23 +750,14 @@ const Transactions = () => {
                               const { amount, usdValue, symbol } = formatValue(tx);
                               return (
                                 <>
-                                  <div className="flex items-center gap-1 justify-end">
-                                    {category === 'sent' && <ArrowUpRight className="h-3.5 w-3.5 text-destructive" />}
-                                    {category === 'received' && <ArrowDownLeft className="h-3.5 w-3.5 text-success" />}
-                                    <p className={`text-base font-semibold ${getAmountColor()}`}>
-                                      {category === 'sent' ? '-' : category === 'received' ? '+' : ''}
-                                      {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
-                                    </p>
-                                  </div>
-                                  {usdValue > 0 ? (
-                                    <p className="text-sm text-muted-foreground/70">
-                                      {formatUSD(usdValue)}
-                                    </p>
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground/50">
-                                      Price unavailable
-                                    </p>
-                                  )}
+                                   <div className="flex items-center gap-1 justify-end">
+                                     {category === 'sent' && <ArrowUpRight className="h-3.5 w-3.5 text-destructive" />}
+                                     {category === 'received' && <ArrowDownLeft className="h-3.5 w-3.5 text-success" />}
+                                     <p className={`text-base font-semibold ${getAmountColor()}`}>
+                                       {category === 'sent' ? '-' : category === 'received' ? '+' : ''}
+                                       {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
+                                     </p>
+                                   </div>
                                 </>
                               );
                             })()}
