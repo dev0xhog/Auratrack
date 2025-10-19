@@ -18,17 +18,21 @@ interface MoralisTransactionsResponse {
   cursor?: string;
 }
 
-// Supported EVM chains for multi-chain transaction fetching
-const SUPPORTED_CHAINS = [
+// Priority chains load first with minimal delay
+const PRIORITY_CHAINS = [
   "eth",           // Ethereum
-  "polygon",       // Polygon
   "bsc",           // Binance Smart Chain
-  "avalanche",     // Avalanche
-  "fantom",        // Fantom
+  "polygon",       // Polygon
   "arbitrum",      // Arbitrum
   "optimism",      // Optimism
   "base",          // Base
+];
+
+// Secondary chains load after with more delay
+const SECONDARY_CHAINS = [
+  "avalanche",     // Avalanche
   "linea",         // Linea
+  "fantom",        // Fantom
   "cronos",        // Cronos
   "gnosis",        // Gnosis
   "chiliz",        // Chiliz
@@ -39,6 +43,8 @@ const SUPPORTED_CHAINS = [
   "lisk",          // Lisk
   "pulsechain",    // Pulsechain
 ];
+
+const SUPPORTED_CHAINS = [...PRIORITY_CHAINS, ...SECONDARY_CHAINS];
 
 export const useMoralisTransactionsByChain = (address: string | undefined) => {
   return useQuery<{ [chain: string]: MoralisTransaction[] }>({
@@ -53,11 +59,13 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
       
       for (let i = 0; i < SUPPORTED_CHAINS.length; i++) {
         const chain = SUPPORTED_CHAINS[i];
+        const isPriority = PRIORITY_CHAINS.includes(chain);
         
         try {
-          // Add delay between requests (except first one)
+          // Minimal delay for priority chains, more for secondary
           if (i > 0) {
-            await new Promise(resolve => setTimeout(resolve, 300));
+            const delay = isPriority ? 50 : 150;
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
           
           const response = await fetch(
@@ -99,7 +107,7 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
       return transactionsByChain;
     },
     enabled: !!address,
-    staleTime: 60000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 1,
     refetchOnWindowFocus: false,
   });
