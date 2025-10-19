@@ -52,11 +52,20 @@ export const useMoralisTokenTransfersByChain = (address: string | undefined) => 
       
       const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
       
-      // Fetch all chains in parallel for faster initial load - limit to 3 transfers per chain
-      const fetchPromises = SUPPORTED_CHAINS.map(async (chain) => {
+      // Fetch transfers sequentially with delay to avoid rate limiting
+      const results: MoralisTokenTransfer[][] = [];
+      
+      for (let i = 0; i < SUPPORTED_CHAINS.length; i++) {
+        const chain = SUPPORTED_CHAINS[i];
+        
         try {
+          // Add delay between requests (except first one)
+          if (i > 0) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+          
           const response = await fetch(
-            `https://deep-index.moralis.io/api/v2.2/${address}/erc20/transfers?chain=${chain}&limit=3`,
+            `https://deep-index.moralis.io/api/v2.2/${address}/erc20/transfers?chain=${chain}&limit=50`,
             {
               headers: {
                 "X-API-Key": apiKey,
@@ -65,29 +74,28 @@ export const useMoralisTokenTransfersByChain = (address: string | undefined) => 
           );
           
           if (!response.ok) {
-            return { chain, transfers: [] };
+            console.warn(`Failed to fetch token transfers for ${chain}: ${response.status}`);
+            results.push([]);
+            continue;
           }
           
           const data: MoralisTokenTransfersResponse = await response.json();
-          return { chain, transfers: data.result.map(tx => ({ ...tx, chain })) };
+          results.push(data.result.map(tx => ({ ...tx, chain })));
         } catch (error) {
-          return { chain, transfers: [] };
+          console.warn(`Error fetching token transfers for ${chain}:`, error);
+          results.push([]);
         }
-      });
-
-      const results = await Promise.all(fetchPromises);
+      }
 
       const transfersByChain: Record<string, MoralisTokenTransfer[]> = {};
-      results.forEach(({ chain, transfers }) => {
-        if (transfers.length > 0) {
-          transfersByChain[chain] = transfers;
-        }
+      SUPPORTED_CHAINS.forEach((chain, index) => {
+        transfersByChain[chain] = results[index];
       });
 
       return transfersByChain;
     },
     enabled: !!address,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 60000,
     retry: 1,
     refetchOnWindowFocus: false,
   });

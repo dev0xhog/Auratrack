@@ -48,11 +48,20 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
       
       const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
       
-      // Fetch all chains in parallel for faster initial load - limit to 3 transactions per chain
-      const fetchPromises = SUPPORTED_CHAINS.map(async (chain) => {
+      // Fetch transactions sequentially with delay to avoid rate limiting
+      const results: Array<{ chain: string; transactions: MoralisTransaction[] }> = [];
+      
+      for (let i = 0; i < SUPPORTED_CHAINS.length; i++) {
+        const chain = SUPPORTED_CHAINS[i];
+        
         try {
+          // Add delay between requests (except first one)
+          if (i > 0) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+          
           const response = await fetch(
-            `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain}&limit=3`,
+            `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain}&limit=20`,
             {
               headers: {
                 "X-API-Key": apiKey,
@@ -61,21 +70,23 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
           );
           
           if (!response.ok) {
-            return { chain, transactions: [] };
+            console.warn(`Failed to fetch transactions for ${chain}: ${response.status}`);
+            results.push({ chain, transactions: [] });
+            continue;
           }
           
           const data: MoralisTransactionsResponse = await response.json();
+          // Add chain info to each transaction
           const transactionsWithChain = data.result.map(tx => ({
             ...tx,
             chain,
           }));
-          return { chain, transactions: transactionsWithChain };
+          results.push({ chain, transactions: transactionsWithChain });
         } catch (error) {
-          return { chain, transactions: [] };
+          console.warn(`Error fetching transactions for ${chain}:`, error);
+          results.push({ chain, transactions: [] });
         }
-      });
-      
-      const results = await Promise.all(fetchPromises);
+      }
       
       // Convert to object with chain as key
       const transactionsByChain: { [chain: string]: MoralisTransaction[] } = {};
@@ -88,7 +99,7 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
       return transactionsByChain;
     },
     enabled: !!address,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 60000,
     retry: 1,
     refetchOnWindowFocus: false,
   });

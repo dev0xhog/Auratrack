@@ -8,7 +8,8 @@ import { useSearchParams } from "react-router-dom";
 import { useMoralisTransactionsByChain } from "@/hooks/useMoralisTransactionsByChain";
 import { useMoralisTokenTransfersByChain } from "@/hooks/useMoralisTokenTransfersByChain";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatNumber } from "@/lib/formatters";
+import { formatNumber, formatUSD } from "@/lib/formatters";
+import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { NetworkIcon } from "@/components/transactions/NetworkIcon";
 import { TokenIcon } from "@/components/transactions/TokenIcon";
 
@@ -104,6 +105,97 @@ const Transactions = () => {
     );
   }, [txsByChain, transfersByChain]);
 
+  // Get unique token infos for price fetching (both native and ERC-20)
+  const tokenInfos = useMemo(() => {
+    const tokenSet = new Map<string, { symbol: string; address?: string; network?: string }>();
+    
+    // Add native tokens for each chain
+    const chains = Object.keys(txsByChain || {});
+    chains.forEach(chain => {
+      let key: string;
+      let token: { symbol: string; network?: string };
+      
+      if (chain === "eth") {
+        key = "ETH-ethereum";
+        token = { symbol: "ETH", network: "ethereum" };
+      } else if (chain === "polygon") {
+        key = "MATIC-polygon";
+        token = { symbol: "MATIC", network: "polygon" };
+      } else if (chain === "bsc") {
+        key = "BNB-bsc";
+        token = { symbol: "BNB", network: "bsc" };
+      } else if (chain === "avalanche") {
+        key = "AVAX-avalanche";
+        token = { symbol: "AVAX", network: "avalanche" };
+      } else if (chain === "fantom") {
+        key = "FTM-fantom";
+        token = { symbol: "FTM", network: "fantom" };
+      } else if (chain === "arbitrum") {
+        key = "ETH-arbitrum";
+        token = { symbol: "ETH", network: "arbitrum" };
+      } else if (chain === "optimism") {
+        key = "ETH-optimism";
+        token = { symbol: "ETH", network: "optimism" };
+      } else if (chain === "base") {
+        key = "ETH-base";
+        token = { symbol: "ETH", network: "base" };
+      } else if (chain === "linea") {
+        key = "ETH-linea";
+        token = { symbol: "ETH", network: "linea" };
+      } else if (chain === "cronos") {
+        key = "CRO-cronos";
+        token = { symbol: "CRO", network: "cronos" };
+      } else if (chain === "gnosis") {
+        key = "XDAI-gnosis";
+        token = { symbol: "XDAI", network: "gnosis" };
+      } else if (chain === "chiliz") {
+        key = "CHZ-chiliz";
+        token = { symbol: "CHZ", network: "chiliz" };
+      } else if (chain === "moonbeam") {
+        key = "GLMR-moonbeam";
+        token = { symbol: "GLMR", network: "moonbeam" };
+      } else if (chain === "moonriver") {
+        key = "MOVR-moonriver";
+        token = { symbol: "MOVR", network: "moonriver" };
+      } else if (chain === "flow") {
+        key = "FLOW-flow";
+        token = { symbol: "FLOW", network: "flow" };
+      } else if (chain === "ronin") {
+        key = "RON-ronin";
+        token = { symbol: "RON", network: "ronin" };
+      } else if (chain === "lisk") {
+        key = "LSK-lisk";
+        token = { symbol: "LSK", network: "lisk" };
+      } else if (chain === "pulsechain") {
+        key = "PLS-pulsechain";
+        token = { symbol: "PLS", network: "pulsechain" };
+      } else {
+        key = "ETH-ethereum";
+        token = { symbol: "ETH", network: "ethereum" };
+      }
+      
+      tokenSet.set(key, token);
+    });
+    
+    // Add all unique ERC-20 tokens from transactions
+    allTransactions.forEach(tx => {
+      if (tx.type === 'erc20' && tx.token_address && tx.token_symbol) {
+        const key = `${tx.token_symbol}-${tx.token_address}`;
+        tokenSet.set(key, {
+          symbol: tx.token_symbol,
+          address: tx.token_address,
+          network: tx.chain,
+        });
+      }
+    });
+    
+    return Array.from(tokenSet.values());
+  }, [txsByChain, allTransactions]);
+
+  const { data: tokenPrices } = useTokenPrices(tokenInfos);
+  
+  // Debug: Log token prices when they change
+  console.log('Token prices available:', tokenPrices ? Object.keys(tokenPrices).length : 0, tokenPrices);
 
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -189,7 +281,18 @@ const Transactions = () => {
       symbol = getChainSymbol(tx.chain);
     }
     
-    return { amount, symbol };
+    // Uppercase symbol for price lookup (prices are stored with uppercase keys)
+    const symbolUpper = symbol.toUpperCase();
+    const tokenPrice = tokenPrices?.[symbolUpper];
+    const price = tokenPrice?.current_price || 0;
+    const usdValue = amount * price;
+    
+    // Debug logging
+    if (amount > 0 && !price) {
+      console.log(`No price found for ${symbol} (${symbolUpper}). Available prices:`, tokenPrices ? Object.keys(tokenPrices) : 'none');
+    }
+    
+    return { amount, usdValue, symbol, price };
   };
 
   // Enhanced transaction categorization
@@ -335,7 +438,7 @@ const Transactions = () => {
     }
 
     return filtered;
-  }, [allTransactions, searchQuery, networkFilter, hideUnknownTokens]);
+  }, [allTransactions, searchQuery, networkFilter, hideUnknownTokens, tokenPrices]);
 
   // Get unique networks from transactions
   const availableNetworks = useMemo(() => {
@@ -629,7 +732,7 @@ const Transactions = () => {
                         {isSwap ? (
                           <div className="space-y-1">
                             {swapTxs.map((swapTx, i) => {
-                              const { amount, symbol } = formatValue(swapTx);
+                              const { amount, usdValue, symbol } = formatValue(swapTx);
                               const isSent = swapTx.from_address.toLowerCase() === walletAddress.toLowerCase();
                               return (
                                  <div key={i}>
@@ -644,8 +747,9 @@ const Transactions = () => {
                         ) : category !== 'interaction' && category !== 'approved' ? (
                           <>
                             {(() => {
-                              const { amount, symbol } = formatValue(tx);
+                              const { amount, usdValue, symbol } = formatValue(tx);
                               return (
+                                <>
                                    <div className="flex items-center gap-1 justify-end">
                                      {category === 'sent' && <ArrowUpRight className="h-3.5 w-3.5 text-destructive" />}
                                      {category === 'received' && <ArrowDownLeft className="h-3.5 w-3.5 text-success" />}
@@ -654,6 +758,7 @@ const Transactions = () => {
                                        {formatNumber(amount, amount < 1 ? 6 : 2)} {symbol}
                                      </p>
                                    </div>
+                                </>
                               );
                             })()}
                           </>
