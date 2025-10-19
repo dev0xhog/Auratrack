@@ -1,73 +1,222 @@
-# Welcome to your Lovable project
+# Multi-Chain Crypto Portfolio Tracker
 
-## Project info
+A comprehensive, multi-chain cryptocurrency portfolio and transaction tracker built for seamless blockchain data visualization across 18 EVM-compatible networks.
 
-**URL**: https://lovable.dev/projects/37e29a6c-e689-4201-be81-914c2de6d4bb
+## 🎯 Overview
 
-## How can I edit this code?
+This application provides users with a unified interface to track their crypto assets, NFTs, transactions, and portfolio performance across multiple blockchain networks. Built with modern web technologies and powered by Moralis API, it offers real-time data aggregation and beautiful visualizations.
 
-There are several ways of editing your application.
+## ✨ Key Features
 
-**Use Lovable**
+### 📊 Portfolio Dashboard
+- **Multi-chain balance tracking** across 18 networks
+- **Real-time price data** integration via CoinCap API
+- **Portfolio value charts** with historical performance
+- **Token holdings table** with detailed metrics
+- **24h price changes** and percentage gains/losses
+- **Automated portfolio strategies** suggestions
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/37e29a6c-e689-4201-be81-914c2de6d4bb) and start prompting.
+### 💎 NFT Gallery
+- **Cross-chain NFT discovery** with automatic metadata fetching
+- **Network filtering** to view NFTs by blockchain
+- **High-quality image rendering** with lazy loading
+- **Collection details** and metadata display
+- **Spam NFT filtering** for cleaner galleries
 
-Changes made via Lovable will be committed automatically to this repo.
+### 🔄 Transaction History
+- **Unified transaction view** across all supported chains
+- **Smart swap detection** - automatically groups related transactions
+- **Transaction categorization** (sent, received, swapped, approved)
+- **Network filtering** and search functionality
+- **Spam token filtering** with comprehensive security checks
+- **Direct blockchain explorer links** for verification
 
-**Use your preferred IDE**
+### 🔗 Wallet Integration
+- **RainbowKit integration** for smooth wallet connection
+- **Support for major wallets**: MetaMask, Coinbase Wallet, WalletConnect, and more
+- **Automatic address detection** via URL parameters
+- **Multi-wallet support**
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🌐 Supported Networks
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+The application supports **18 EVM-compatible chains**:
 
-Follow these steps:
+- Ethereum
+- Polygon
+- Binance Smart Chain (BSC)
+- Avalanche
+- Fantom
+- Arbitrum
+- Optimism
+- Base
+- Linea
+- Cronos
+- Gnosis
+- Chiliz
+- Moonbeam
+- Moonriver
+- Flow EVM
+- Ronin
+- Lisk
+- Pulsechain
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+## 🛠️ Tech Stack
+
+### Frontend
+- **React 18** - Modern UI library
+- **TypeScript** - Type-safe development
+- **Vite** - Lightning-fast build tool
+- **Tailwind CSS** - Utility-first styling
+- **shadcn/ui** - Beautiful, accessible component library
+- **React Router** - Client-side routing
+- **Recharts** - Data visualization
+
+### Blockchain Integration
+- **RainbowKit** - Wallet connection UI
+- **Wagmi** - React hooks for Ethereum
+- **Viem** - TypeScript Ethereum library
+- **Moralis API** - Multi-chain blockchain data
+
+### State Management & Data Fetching
+- **TanStack Query (React Query)** - Async state management
+- **React Hook Form** - Form handling
+- **Zod** - Schema validation
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+ and npm/yarn/pnpm/bun
+- A Moralis API key (get it at [moralis.io](https://moralis.io))
+
+### Installation
+
+1. **Clone the repository**
+```bash
 git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
 cd <YOUR_PROJECT_NAME>
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+2. **Install dependencies**
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+# or
+bun install
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. **Set up environment variables**
+```bash
+cp .env.example .env
+```
+
+Add your Moralis API key to `.env`:
+```
+VITE_MORALIS_API_KEY=your_api_key_here
+```
+
+4. **Start the development server**
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at `http://localhost:5173`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📁 Project Structure
 
-**Use GitHub Codespaces**
+```
+src/
+├── components/          # Reusable UI components
+│   ├── layout/         # Layout components (Navbar, etc.)
+│   ├── nft/            # NFT-specific components
+│   ├── portfolio/      # Portfolio dashboard components
+│   ├── transactions/   # Transaction view components
+│   └── ui/             # shadcn/ui base components
+├── hooks/              # Custom React hooks
+│   ├── useMoralis*.ts  # Moralis API integration hooks
+│   ├── useTokenPrices.ts
+│   └── usePortfolio*.ts
+├── pages/              # Route pages
+│   ├── Landing.tsx     # Home page
+│   ├── Portfolio.tsx   # Portfolio dashboard
+│   ├── NFTs.tsx        # NFT gallery
+│   ├── Transactions.tsx
+│   └── Strategies.tsx
+├── lib/                # Utility functions
+│   ├── formatters.ts   # Number/currency formatters
+│   ├── utils.ts        # General utilities
+│   └── nftHelpers.ts   # NFT-specific utilities
+└── config/             # Configuration files
+    └── wagmi.ts        # Wallet connection config
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🎨 Features in Detail
 
-## What technologies are used for this project?
+### Smart Transaction Grouping
+The transaction view automatically detects and groups related transactions (e.g., swaps) by analyzing transaction hashes and timestamps, providing a cleaner, more intuitive view of your activity.
 
-This project is built with:
+### Spam Token Filtering
+Advanced filtering system that checks:
+- Moralis spam detection API
+- Token contract verification status
+- Security scores
+- Unicode character detection (scam tokens)
+- Suspicious naming patterns
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Performance Optimizations
+- **Parallel API calls** for faster data loading
+- **React Query caching** with 5-minute stale time
+- **Progressive loading** - show initial results while fetching more
+- **Image lazy loading** for NFTs
+- **Memoized computations** for heavy data transformations
 
-## How can I deploy this project?
+## 🔐 Security Features
 
-Simply open [Lovable](https://lovable.dev/projects/37e29a6c-e689-4201-be81-914c2de6d4bb) and click on Share -> Publish.
+- No private key handling - wallet connection only
+- Read-only blockchain data access
+- Secure API key management through environment variables
+- XSS protection through React's built-in escaping
+- Content Security Policy ready
 
-## Can I connect a custom domain to my Lovable project?
+## 🌟 Future Enhancements
 
-Yes, you can!
+- [ ] DeFi protocol integration (staking, lending positions)
+- [ ] Portfolio alerts and notifications
+- [ ] Historical portfolio snapshots
+- [ ] Tax reporting export
+- [ ] Social features (share portfolios)
+- [ ] Mobile app (React Native)
+- [ ] Advanced analytics and insights
+- [ ] Multi-language support
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 📊 API Rate Limits
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+The application uses Moralis API which has rate limits. For production use:
+- Consider implementing request queuing
+- Use the paid Moralis plan for higher limits
+- Implement request caching strategies
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+## 🔗 Links
+
+- **Live Demo**: [Deploy your app to Lovable](https://lovable.dev/projects/37e29a6c-e689-4201-be81-914c2de6d4bb)
+- **Moralis API**: [moralis.io](https://moralis.io)
+- **RainbowKit**: [rainbowkit.com](https://rainbowkit.com)
+- **shadcn/ui**: [ui.shadcn.com](https://ui.shadcn.com)
+
+## 💬 Support
+
+For questions or support, please [open an issue](https://github.com/yourusername/yourrepo/issues) on GitHub.
+
+---
+
+Built with ❤️ using [Lovable](https://lovable.dev)

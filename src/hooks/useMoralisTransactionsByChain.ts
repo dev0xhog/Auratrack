@@ -18,21 +18,17 @@ interface MoralisTransactionsResponse {
   cursor?: string;
 }
 
-// Priority chains load first with minimal delay
-const PRIORITY_CHAINS = [
+// Supported EVM chains for multi-chain transaction fetching
+const SUPPORTED_CHAINS = [
   "eth",           // Ethereum
-  "bsc",           // Binance Smart Chain
   "polygon",       // Polygon
+  "bsc",           // Binance Smart Chain
+  "avalanche",     // Avalanche
+  "fantom",        // Fantom
   "arbitrum",      // Arbitrum
   "optimism",      // Optimism
   "base",          // Base
-];
-
-// Secondary chains load after with more delay
-const SECONDARY_CHAINS = [
-  "avalanche",     // Avalanche
   "linea",         // Linea
-  "fantom",        // Fantom
   "cronos",        // Cronos
   "gnosis",        // Gnosis
   "chiliz",        // Chiliz
@@ -44,8 +40,6 @@ const SECONDARY_CHAINS = [
   "pulsechain",    // Pulsechain
 ];
 
-const SUPPORTED_CHAINS = [...PRIORITY_CHAINS, ...SECONDARY_CHAINS];
-
 export const useMoralisTransactionsByChain = (address: string | undefined) => {
   return useQuery<{ [chain: string]: MoralisTransaction[] }>({
     queryKey: ["moralis-transactions-multi-chain", address],
@@ -54,22 +48,11 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
       
       const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
       
-      // Fetch transactions sequentially with delay to avoid rate limiting
-      const results: Array<{ chain: string; transactions: MoralisTransaction[] }> = [];
-      
-      for (let i = 0; i < SUPPORTED_CHAINS.length; i++) {
-        const chain = SUPPORTED_CHAINS[i];
-        const isPriority = PRIORITY_CHAINS.includes(chain);
-        
+      // Fetch all chains in parallel for faster initial load - limit to 3 transactions per chain
+      const fetchPromises = SUPPORTED_CHAINS.map(async (chain) => {
         try {
-          // Minimal delay for priority chains, more for secondary
-          if (i > 0) {
-            const delay = isPriority ? 50 : 150;
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-          
           const response = await fetch(
-            `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain}&limit=20`,
+            `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain}&limit=3`,
             {
               headers: {
                 "X-API-Key": apiKey,
@@ -78,23 +61,21 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
           );
           
           if (!response.ok) {
-            console.warn(`Failed to fetch transactions for ${chain}: ${response.status}`);
-            results.push({ chain, transactions: [] });
-            continue;
+            return { chain, transactions: [] };
           }
           
           const data: MoralisTransactionsResponse = await response.json();
-          // Add chain info to each transaction
           const transactionsWithChain = data.result.map(tx => ({
             ...tx,
             chain,
           }));
-          results.push({ chain, transactions: transactionsWithChain });
+          return { chain, transactions: transactionsWithChain };
         } catch (error) {
-          console.warn(`Error fetching transactions for ${chain}:`, error);
-          results.push({ chain, transactions: [] });
+          return { chain, transactions: [] };
         }
-      }
+      });
+      
+      const results = await Promise.all(fetchPromises);
       
       // Convert to object with chain as key
       const transactionsByChain: { [chain: string]: MoralisTransaction[] } = {};
