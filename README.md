@@ -21,15 +21,7 @@ This README highlights the project's priority integrations (Aura APIs) first, th
 - Display recent transactions and token transfers (multi-chain where possible).
 - Provide strategy suggestions based on the wallet's holdings using Aura's Portfolio Strategies API. These are shown on the Strategies page and are normalized for easy display.
 
-## Aura APIs — priority (please review first)
-These two endpoints are the core of the hackathon submission and are used directly by hooks in the project.
-
-- Portfolio Balances
-  - GET https://aura.adex.network/api/portfolio/balances?address={address}
-  - Used by: `src/hooks/usePortfolioBalances.ts`
-  Auratrack is an EVM wallet portfolio tracker and strategy recommender built as an AURA Hackathon submission. It fetches portfolio balances and generates AI-driven strategies via the Aura APIs, and augments the UI with NFTs, transaction history, token prices and charts.
-
-  ## Priority: Aura APIs (must-see)
+## Aura APIs — priority
   - Portfolio Balances API endpoint used by this project:
     - GET https://aura.adex.network/api/portfolio/balances?address={address}
     - Where {address} is an EVM wallet address (hex). The project calls this endpoint from `src/hooks/usePortfolioBalances.ts`.
@@ -37,7 +29,7 @@ These two endpoints are the core of the hackathon submission and are used direct
     - GET https://aura.adex.network/api/portfolio/strategies?address={address}
     - The project calls this endpoint from `src/hooks/usePortfolioStrategies.ts` and flattens the returned strategies for display. The UI powered by this endpoint is in `src/components/portfolio/PortfolioStrategiesSection.tsx`.
 
-  Notes for reviewers:
+  Notes:
   - See `src/hooks/usePortfolioBalances.ts` and `src/hooks/usePortfolioStrategies.ts` for exact request/response handling and types used.
   - The UI pages that surface this data are `src/pages/Portfolio.tsx` and `src/pages/Strategies.tsx`.
 
@@ -91,12 +83,10 @@ These two endpoints are the core of the hackathon submission and are used direct
     - `src/components/nft` — NFT card and list UI
   - Token prices and charts
     - `src/hooks/useTokenPrices.ts` — CoinCap
-    - `src/pages/Portfolio.tsx` — also fetches CoinGecko for token prices and 24h change
+    - `src/pages/Portfolio.tsx` — also fetches CoinGecko for token prices and portfolio 24h change
 
   ## Known issues & notes
   - Some chains (e.g., Mantle) are handled with hardcoded address/logo fallbacks — Moralis might not support newer chains fully.
-  - Tests are not included; this is a demo/hackathon app meant to showcase integrations and UX.
-
 
   ## Contact and credits
   - Author: dev0xhog
