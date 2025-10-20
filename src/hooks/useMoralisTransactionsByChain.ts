@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { validateAndSanitizeAddress, isValidChain } from "@/lib/validation";
-import { fetchWithTimeout, batchFetch, getApiKey } from "@/lib/apiClient";
+import { fetchWithTimeout, batchFetch } from "@/lib/apiClient";
+import { getApiKey } from "@/config/api";
 
 interface MoralisTransaction {
   hash: string;
@@ -52,12 +53,7 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
         throw new Error("Invalid Ethereum address format");
       }
       
-      const apiKey = import.meta.env.VITE_MORALIS_API_KEY;
-      
-      if (!apiKey) {
-        console.error("VITE_MORALIS_API_KEY is not set");
-        throw new Error("VITE_MORALIS_API_KEY is required. Please set it in your environment variables.");
-      }
+      const apiKey = getApiKey('MORALIS');
       
       // Performance: Fetch chains in parallel batches to reduce load time
       const fetchChainTransactions = async (chain: string) => {

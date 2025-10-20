@@ -65,22 +65,3 @@ export const batchFetch = async <T>(
   
   return results;
 };
-
-/**
- * API key management (should use env variables in production)
- */
-export const getApiKey = (service: 'moralis' | 'alchemy' | 'etherscan'): string => {
-  const keys = {
-    moralis: import.meta.env.VITE_MORALIS_API_KEY || '',
-    alchemy: import.meta.env.VITE_ALCHEMY_API_KEY || '',
-    etherscan: import.meta.env.VITE_ETHERSCAN_API_KEY || '',
-  };
-
-  const key = keys[service];
-  
-  if (!key) {
-    console.error(`❌ ${service.toUpperCase()} API key not configured. Please set VITE_${service.toUpperCase()}_API_KEY in your .env file.`);
-  }
-
-  return key;
-};

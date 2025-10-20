@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { getApiKey } from "@/config/api";
 
 interface MoralisTransaction {
   hash: string;
@@ -23,11 +24,7 @@ export const useMoralisTransactions = (address: string | undefined, chain: strin
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
       
-      const apiKey = import.meta.env.VITE_MORALIS_API_KEY;
-      
-      if (!apiKey) {
-        throw new Error("VITE_MORALIS_API_KEY is required. Please set it in your environment variables.");
-      }
+      const apiKey = getApiKey('MORALIS');
       const response = await fetch(
         `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain}&limit=20`,
         {

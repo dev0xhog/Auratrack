@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { getApiKey } from "@/config/api";
 
 interface NFTMetadata {
   name?: string;
@@ -30,11 +31,7 @@ export const useMoralisNFTs = (address: string | undefined, chain: string = "eth
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
       
-      const apiKey = import.meta.env.VITE_MORALIS_API_KEY;
-      
-      if (!apiKey) {
-        throw new Error("VITE_MORALIS_API_KEY is required. Please set it in your environment variables.");
-      }
+      const apiKey = getApiKey('MORALIS');
       const response = await fetch(
         `https://deep-index.moralis.io/api/v2.2/${address}/nft?chain=${chain}&format=decimal`,
         {
