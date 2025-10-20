@@ -16,22 +16,27 @@ interface TokenTableProps {
 type SortField = "symbol" | "balance" | "balanceUSD";
 type SortDirection = "asc" | "desc";
 
-//  Fixed USD formatter – handles small values gracefully
+// ✅ Improved USD formatter — shows full numbers, smart decimals, no abbreviations
 const formatUSD = (value: number) => {
   if (!value || isNaN(value)) return "$0.00";
 
-  // Use adaptive precision: more decimals for tiny prices
+  // Very small numbers — show up to 6 decimals
   if (value < 0.01) {
     return `$${value.toFixed(6)}`;
-  } else if (value < 1) {
-    return `$${value.toFixed(4)}`;
-  } else if (value < 1000) {
-    return `$${value.toFixed(2)}`;
-  } else if (value < 1_000_000) {
-    return `$${(value / 1000).toFixed(2)}K`;
-  } else {
-    return `$${(value / 1_000_000).toFixed(2)}M`;
   }
+
+  // Small numbers (< 1) — show 4 decimals
+  if (value < 1) {
+    return `$${value.toFixed(4)}`;
+  }
+
+  // Normal and large numbers — standard USD formatting
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 };
 
 export const TokenTable = ({ tokens }: TokenTableProps) => {
