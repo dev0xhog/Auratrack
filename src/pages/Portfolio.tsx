@@ -14,7 +14,15 @@ import { useQuery } from "@tanstack/react-query";
 
 const Portfolio = () => {
   const [searchParams] = useSearchParams();
-  const walletAddress = searchParams.get("address") || undefined;
+  const addressParam = searchParams.get("address");
+  
+  // Security: Validate wallet address before using it
+  const walletAddress = useMemo(() => {
+    if (!addressParam) return undefined;
+    // Validate address format to prevent XSS and injection attacks
+    const addressRegex = /^0x[a-fA-F0-9]{40}$/;
+    return addressRegex.test(addressParam.trim()) ? addressParam.trim() : undefined;
+  }, [addressParam]);
   const { data, isLoading, error } = usePortfolioBalances(walletAddress);
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
 
@@ -132,8 +140,6 @@ const Portfolio = () => {
 
         const change = totalValue - totalValue24hAgo;
         const changePercent = totalValue24hAgo > 0 ? (change / totalValue24hAgo) * 100 : 0;
-
-        console.log('24hr PnL:', { change, changePercent });
 
         return { change, changePercent };
       } catch (error) {

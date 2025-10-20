@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { validateAndSanitizeAddress } from "@/lib/validation";
+import { fetchWithTimeout } from "@/lib/apiClient";
 
 interface Token {
   address: string;
@@ -32,20 +34,28 @@ export const usePortfolioBalances = (address: string | undefined) => {
   return useQuery<PortfolioBalancesResponse>({
     queryKey: ["portfolio-balances", address],
     queryFn: async () => {
-      if (!address) throw new Error("Address is required");
+      // Security: Validate and sanitize address input
+      const validAddress = validateAndSanitizeAddress(address);
+      if (!validAddress) {
+        throw new Error("Invalid Ethereum address format");
+      }
       
-      const response = await fetch(
-        `https://aura.adex.network/api/portfolio/balances?address=${address}`
+      const response = await fetchWithTimeout(
+        `https://aura.adex.network/api/portfolio/balances?address=${validAddress}`,
+        {
+          timeout: 20000,
+          retries: 2,
+        }
       );
       
       if (!response.ok) {
-        throw new Error("Failed to fetch portfolio balances");
+        throw new Error(`Failed to fetch portfolio balances: ${response.status}`);
       }
       
       return response.json();
     },
-    enabled: !!address,
-    staleTime: 60000, // 1 minute
+    enabled: !!address && validateAndSanitizeAddress(address) !== null,
+    staleTime: 120000, // Cache for 2 minutes
     retry: 2,
   });
 };

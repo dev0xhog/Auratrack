@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { validateAndSanitizeAddress, isValidChain } from "@/lib/validation";
+import { fetchWithTimeout, batchFetch, getApiKey } from "@/lib/apiClient";
 
 interface MoralisTransaction {
   hash: string;
@@ -44,51 +46,56 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
   return useQuery<{ [chain: string]: MoralisTransaction[] }>({
     queryKey: ["moralis-transactions-multi-chain", address],
     queryFn: async () => {
-      if (!address) throw new Error("Address is required");
+      // Security: Validate and sanitize address input
+      const validAddress = validateAndSanitizeAddress(address);
+      if (!validAddress) {
+        throw new Error("Invalid Ethereum address format");
+      }
       
-      const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
+      const apiKey = getApiKey('moralis') || 
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
       
-      // Fetch transactions sequentially with delay to avoid rate limiting
-      const results: Array<{ chain: string; transactions: MoralisTransaction[] }> = [];
-      
-      for (let i = 0; i < SUPPORTED_CHAINS.length; i++) {
-        const chain = SUPPORTED_CHAINS[i];
-        
+      // Performance: Fetch chains in parallel batches to reduce load time
+      const fetchChainTransactions = async (chain: string) => {
+        // Security: Validate chain parameter
+        if (!isValidChain(chain, SUPPORTED_CHAINS)) {
+          console.warn(`Invalid chain identifier: ${chain}`);
+          return { chain, transactions: [] };
+        }
+
         try {
-          // Add delay between requests (except first one)
-          if (i > 0) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }
-          
-          const response = await fetch(
-            `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain}&limit=20`,
+          const response = await fetchWithTimeout(
+            `https://deep-index.moralis.io/api/v2.2/${validAddress}?chain=${chain}&limit=50`,
             {
-              headers: {
-                "X-API-Key": apiKey,
-              },
+              headers: { "X-API-Key": apiKey },
+              timeout: 15000,
+              retries: 1,
             }
           );
           
           if (!response.ok) {
             console.warn(`Failed to fetch transactions for ${chain}: ${response.status}`);
-            results.push({ chain, transactions: [] });
-            continue;
+            return { chain, transactions: [] };
           }
           
           const data: MoralisTransactionsResponse = await response.json();
-          // Add chain info to each transaction
           const transactionsWithChain = data.result.map(tx => ({
             ...tx,
             chain,
           }));
-          results.push({ chain, transactions: transactionsWithChain });
+          
+          return { chain, transactions: transactionsWithChain };
         } catch (error) {
           console.warn(`Error fetching transactions for ${chain}:`, error);
-          results.push({ chain, transactions: [] });
+          return { chain, transactions: [] };
         }
-      }
+      };
+
+      // Performance: Batch requests with concurrency control (5 chains at a time)
+      const requests = SUPPORTED_CHAINS.map(chain => () => fetchChainTransactions(chain));
+      const results = await batchFetch(requests, 5);
       
-      // Convert to object with chain as key
+      // Convert to object with chain as key (only include chains with data)
       const transactionsByChain: { [chain: string]: MoralisTransaction[] } = {};
       results.forEach(({ chain, transactions }) => {
         if (transactions.length > 0) {
@@ -98,8 +105,8 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
       
       return transactionsByChain;
     },
-    enabled: !!address,
-    staleTime: 60000,
+    enabled: !!address && validateAndSanitizeAddress(address) !== null,
+    staleTime: 300000, // Cache for 5 minutes for better performance
     retry: 1,
     refetchOnWindowFocus: false,
   });

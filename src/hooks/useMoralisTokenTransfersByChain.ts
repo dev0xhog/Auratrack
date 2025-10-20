@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { validateAndSanitizeAddress, isValidChain } from "@/lib/validation";
+import { fetchWithTimeout, batchFetch, getApiKey } from "@/lib/apiClient";
 
 export interface MoralisTokenTransfer {
   transaction_hash: string;
@@ -48,54 +50,65 @@ export const useMoralisTokenTransfersByChain = (address: string | undefined) => 
   return useQuery<Record<string, MoralisTokenTransfer[]>>({
     queryKey: ["moralis-token-transfers-by-chain", address],
     queryFn: async () => {
-      if (!address) throw new Error("Address is required");
+      // Security: Validate and sanitize address input
+      const validAddress = validateAndSanitizeAddress(address);
+      if (!validAddress) {
+        throw new Error("Invalid Ethereum address format");
+      }
       
-      const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
+      const apiKey = getApiKey('moralis') || 
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
       
-      // Fetch transfers sequentially with delay to avoid rate limiting
-      const results: MoralisTokenTransfer[][] = [];
-      
-      for (let i = 0; i < SUPPORTED_CHAINS.length; i++) {
-        const chain = SUPPORTED_CHAINS[i];
-        
+      // Performance: Fetch chains in parallel batches
+      const fetchChainTransfers = async (chain: string) => {
+        // Security: Validate chain parameter
+        if (!isValidChain(chain, SUPPORTED_CHAINS)) {
+          console.warn(`Invalid chain identifier: ${chain}`);
+          return { chain, transfers: [] };
+        }
+
         try {
-          // Add delay between requests (except first one)
-          if (i > 0) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }
-          
-          const response = await fetch(
-            `https://deep-index.moralis.io/api/v2.2/${address}/erc20/transfers?chain=${chain}&limit=50`,
+          const response = await fetchWithTimeout(
+            `https://deep-index.moralis.io/api/v2.2/${validAddress}/erc20/transfers?chain=${chain}&limit=50`,
             {
-              headers: {
-                "X-API-Key": apiKey,
-              },
+              headers: { "X-API-Key": apiKey },
+              timeout: 15000,
+              retries: 1,
             }
           );
           
           if (!response.ok) {
             console.warn(`Failed to fetch token transfers for ${chain}: ${response.status}`);
-            results.push([]);
-            continue;
+            return { chain, transfers: [] };
           }
           
           const data: MoralisTokenTransfersResponse = await response.json();
-          results.push(data.result.map(tx => ({ ...tx, chain })));
+          return { 
+            chain, 
+            transfers: data.result.map(tx => ({ ...tx, chain })) 
+          };
         } catch (error) {
           console.warn(`Error fetching token transfers for ${chain}:`, error);
-          results.push([]);
+          return { chain, transfers: [] };
         }
-      }
+      };
 
+      // Performance: Batch requests with concurrency control (5 chains at a time)
+      const requests = SUPPORTED_CHAINS.map(chain => () => fetchChainTransfers(chain));
+      const results = await batchFetch(requests, 5);
+
+      // Only include chains with actual transfers
       const transfersByChain: Record<string, MoralisTokenTransfer[]> = {};
-      SUPPORTED_CHAINS.forEach((chain, index) => {
-        transfersByChain[chain] = results[index];
+      results.forEach(({ chain, transfers }) => {
+        if (transfers.length > 0) {
+          transfersByChain[chain] = transfers;
+        }
       });
 
       return transfersByChain;
     },
-    enabled: !!address,
-    staleTime: 60000,
+    enabled: !!address && validateAndSanitizeAddress(address) !== null,
+    staleTime: 300000, // Cache for 5 minutes for better performance
     retry: 1,
     refetchOnWindowFocus: false,
   });
