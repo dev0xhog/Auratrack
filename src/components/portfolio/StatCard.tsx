@@ -14,7 +14,7 @@ interface StatCardProps {
 export const StatCard = ({ title, value, change, icon: Icon, trend, trendPercentage }: StatCardProps) => {
   const isPositive = trendPercentage && trendPercentage > 0;
   const isNegative = trendPercentage && trendPercentage < 0;
-  
+
   return (
     <Card className="p-6 transition-smooth hover:border-primary/20">
       <div className="flex items-start justify-between">
@@ -28,19 +28,15 @@ export const StatCard = ({ title, value, change, icon: Icon, trend, trendPercent
                   isPositive
                     ? "text-green-600 dark:text-green-500"
                     : isNegative
-                    ? "text-red-600 dark:text-red-500"
-                    : "text-muted-foreground"
+                      ? "text-red-600 dark:text-red-500"
+                      : "text-muted-foreground"
                 }`}
               >
-                {isPositive ? "+" : ""}{formatPercentage(trendPercentage)}
+                {formatPercentage(trendPercentage)}
               </span>
             )}
           </div>
-          {change && (
-            <p className="mt-1 text-sm font-medium text-muted-foreground">
-              {change}
-            </p>
-          )}
+          {change && <p className="mt-1 text-sm font-medium text-muted-foreground">{change}</p>}
         </div>
         <div className="rounded-lg bg-muted p-3">
           <Icon className="h-6 w-6 text-foreground" />
