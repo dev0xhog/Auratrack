@@ -52,9 +52,10 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
         throw new Error("Invalid Ethereum address format");
       }
       
-      const apiKey = getApiKey('moralis');
+      const apiKey = import.meta.env.VITE_MORALIS_API_KEY;
       
       if (!apiKey) {
+        console.error("VITE_MORALIS_API_KEY is not set");
         throw new Error("VITE_MORALIS_API_KEY is required. Please set it in your environment variables.");
       }
       
