@@ -56,8 +56,11 @@ export const useMoralisTokenTransfersByChain = (address: string | undefined) => 
         throw new Error("Invalid Ethereum address format");
       }
       
-      const apiKey = getApiKey('moralis') || 
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
+      const apiKey = getApiKey('moralis');
+      
+      if (!apiKey) {
+        throw new Error("VITE_MORALIS_API_KEY is required. Please set it in your environment variables.");
+      }
       
       // Performance: Fetch chains in parallel batches
       const fetchChainTransfers = async (chain: string) => {

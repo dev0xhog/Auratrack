@@ -95,12 +95,12 @@ This project has been optimized for the following judging criteria:
   ## Other APIs used (secondary priority)
   - Moralis (transaction, token metadata, NFTs fallback): used across multiple hooks and components for transactions, token logos and NFT metadata. Files: `src/hooks/*moralis*.ts`, `src/components/portfolio/TokenLogo.tsx`, `src/components/transactions/TokenIcon.tsx`, `src/hooks/useMoralisNFTsByChain.ts`.
     - Moralis endpoints observed in code (headers expect X-API-Key): deep-index.moralis.io API paths for transactions, erc20 metadata, NFTs.
-    - Environment variable: `VITE_MORALIS_API_KEY` (note: repository contains hardcoded demo keys in several places — these should be replaced with env variables before publishing).
+    - Environment variable: `VITE_MORALIS_API_KEY` (**Required**)
   - Alchemy (NFT fetching when supported chains are present): `src/hooks/useMoralisNFTsByChain.ts` uses Alchemy NFT APIs as a source and converts Alchemy responses to a Moralis-like shape.
-    - Environment variable: `VITE_ALCHEMY_API_KEY` (fallback demo key used in code).
+    - Environment variable: `VITE_ALCHEMY_API_KEY` (**Required** for NFT features)
   - CoinGecko (current token prices for portfolio): used in `src/pages/Portfolio.tsx` to fetch USD prices and 24hr change.
   - CoinCap (bulk token price list): used in `src/hooks/useTokenPrices.ts` as a fallback/no-key source.
-  - Etherscan (transaction list fallback): used in `src/hooks/useTransactions.ts` when needed. Environment variable: `VITE_ETHERSCAN_API_KEY`.
+  - Etherscan (transaction list fallback): used in `src/hooks/useTransactions.ts` when needed. Environment variable: `VITE_ETHERSCAN_API_KEY` (optional).
 
   ## Features implemented
   - Portfolio overview by wallet address with token list, charts and total USD value.
@@ -118,13 +118,28 @@ This project has been optimized for the following judging criteria:
 
   ## How to run (local)
   1. Install dependencies (uses npm by default):
-     - npm install
-  2. Create a .env file in the project root (or use your env manager) and set the following variables (see Security & keys below):
-     - VITE_MORALIS_API_KEY (recommended)
-     - VITE_ALCHEMY_API_KEY (recommended for NFT features)
-     - VITE_ETHERSCAN_API_KEY (optional, tx fallback)
+     ```bash
+     npm install
+     ```
+  
+  2. **🔐 Configure API Keys (IMPORTANT)**:
+     ```bash
+     # Copy the example env file
+     cp .env.example .env
+     ```
+     Then edit `.env` and add your API keys:
+     - `VITE_MORALIS_API_KEY` - **Required** - Get from [moralis.io](https://moralis.io)
+     - `VITE_ALCHEMY_API_KEY` - **Required** - Get from [alchemy.com](https://www.alchemy.com)
+     - `VITE_WALLETCONNECT_PROJECT_ID` - Optional - Get from [cloud.walletconnect.com](https://cloud.walletconnect.com)
+     - `VITE_ETHERSCAN_API_KEY` - Optional - Get from [etherscan.io/myapikey](https://etherscan.io/myapikey)
+     
+     **⚠️ NEVER commit your `.env` file to version control!**
+  
   3. Start dev server:
-     - npm run dev
+     ```bash
+     npm run dev
+     ```
+  
   4. Open http://localhost:5173 (or the port Vite shows) and navigate to Portfolio or Strategies.
 
   ## Important files and where to look
@@ -146,15 +161,34 @@ This project has been optimized for the following judging criteria:
 
 ## 🛡️ Security Features
 
-Auratrack implements multiple security layers to protect users:
+Auratrack implements multiple security layers to protect users and their data:
 
+### Core Security Measures
 1. **Input Validation**: All wallet addresses are validated against Ethereum address format (0x + 40 hex chars)
 2. **Sanitization**: User inputs are cleaned to remove potentially malicious characters
 3. **XSS Prevention**: No `dangerouslySetInnerHTML` or unescaped user content
-4. **API Security**: API keys managed through environment variables, not hardcoded
+4. **API Security**: 
+   - **NO hardcoded API keys** - All keys use environment variables
+   - Keys are never committed to version control
+   - `.env.example` contains only placeholder values
+   - Proper error messages when keys are missing
 5. **Rate Limiting**: Intelligent request batching to prevent overwhelming APIs
 6. **Error Handling**: Comprehensive try-catch blocks with safe error messages
 7. **Chain Validation**: Chain identifiers validated against allowlist before API calls
+8. **Secure Communication**: All API calls use HTTPS only
+
+### API Key Security Best Practices
+- ✅ All API keys stored in `.env` file (git-ignored)
+- ✅ No hardcoded keys in source code
+- ✅ Clear validation and error messages when keys are missing
+- ✅ `.env.example` provided with placeholder values only
+- ✅ Centralized API key management in `src/lib/apiClient.ts`
+
+**🔒 For Production Deployment**: 
+- Use environment variables in your hosting platform (Vercel, Netlify, etc.)
+- Never expose `.env` file publicly
+- Rotate API keys regularly
+- Monitor API usage for anomalies
 
 ## 📊 Performance Benchmarks
 

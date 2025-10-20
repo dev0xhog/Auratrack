@@ -30,7 +30,11 @@ export const useMoralisNFTs = (address: string | undefined, chain: string = "eth
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
       
-      const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYxYjUxMzI5LTRiOGUtNDg0Mi04MDRiLTFiMDYwYjAxOTBmYyIsIm9yZ0lkIjoiNDc0NzMxIiwidXNlcklkIjoiNDg4Mzc2IiwidHlwZUlkIjoiMjU4NjVkNGItMDQzYi00MjQ4LThmNGEtMzUxNzIxOTlkNjM1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTk5MDQxOTYsImV4cCI6NDkxNTY2NDE5Nn0.e9nc8F3W4pCQCw-25-dRuam_IQsiEjd6ENEm9PLYjzQ";
+      const apiKey = import.meta.env.VITE_MORALIS_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error("VITE_MORALIS_API_KEY is required. Please set it in your environment variables.");
+      }
       const response = await fetch(
         `https://deep-index.moralis.io/api/v2.2/${address}/nft?chain=${chain}&format=decimal`,
         {

@@ -79,7 +79,7 @@ export const getApiKey = (service: 'moralis' | 'alchemy' | 'etherscan'): string 
   const key = keys[service];
   
   if (!key) {
-    console.warn(`⚠️ ${service.toUpperCase()} API key not configured. Using fallback.`);
+    console.error(`❌ ${service.toUpperCase()} API key not configured. Please set VITE_${service.toUpperCase()}_API_KEY in your .env file.`);
   }
 
   return key;
