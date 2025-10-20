@@ -2,16 +2,9 @@ import { useState, useMemo } from "react";
 import { Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { Token } from "@/hooks/usePortfolioBalances";
-import { formatBalance, formatUSD, formatPercentage } from "@/lib/formatters";
+import { formatBalance, formatPercentage } from "@/lib/formatters";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { TokenLogo } from "./TokenLogo";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +16,24 @@ interface TokenTableProps {
 type SortField = "symbol" | "balance" | "balanceUSD";
 type SortDirection = "asc" | "desc";
 
+//  Fixed USD formatter – handles small values gracefully
+const formatUSD = (value: number) => {
+  if (!value || isNaN(value)) return "$0.00";
+
+  // Use adaptive precision: more decimals for tiny prices
+  if (value < 0.01) {
+    return `$${value.toFixed(6)}`;
+  } else if (value < 1) {
+    return `$${value.toFixed(4)}`;
+  } else if (value < 1000) {
+    return `$${value.toFixed(2)}`;
+  } else if (value < 1_000_000) {
+    return `$${(value / 1000).toFixed(2)}K`;
+  } else {
+    return `$${(value / 1_000_000).toFixed(2)}M`;
+  }
+};
+
 export const TokenTable = ({ tokens }: TokenTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("balanceUSD");
@@ -30,41 +41,71 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
 
   // Prepare tokens with address and network info for price fetching
   const tokenInfos = useMemo(() => {
-    return tokens.map(token => ({
+    return tokens.map((token) => ({
       symbol: token.symbol,
       address: token.address,
       network: token.network,
       balance: token.balance,
-      balanceUSD: token.balanceUSD
+      balanceUSD: token.balanceUSD,
     }));
   }, [tokens]);
 
   const { data: priceData, isLoading: isPriceLoading } = useTokenPrices(tokenInfos);
-  
+
+  // Get token logo from TrustWallet assets or fallback sources
+  const getTokenLogo = (symbol: string, network: string, address?: string): string => {
+    const networkToTrustWallet: { [key: string]: string } = {
+      ethereum: "ethereum",
+      polygon: "polygon",
+      "op mainnet": "optimism",
+      optimism: "optimism",
+      bsc: "smartchain",
+      binance: "smartchain",
+      avalanche: "avalanchec",
+      arbitrum: "arbitrum",
+      base: "base",
+      fantom: "fantom",
+      mantle: "mantle",
+      linea: "linea",
+      scroll: "scroll",
+      zksync: "zksync",
+    };
+
+    const networkLower = (network || "").toLowerCase();
+    const trustWalletNetwork = Object.entries(networkToTrustWallet).find(([key]) => networkLower.includes(key))?.[1];
+
+    const isNativeOrSpecial =
+      !address || address === "0x0000000000000000000000000000000000000000" || address.toLowerCase().includes("dead");
+
+    if (isNativeOrSpecial && trustWalletNetwork) {
+      return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/info/logo.png`;
+    }
+    if (trustWalletNetwork && address) {
+      return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/assets/${address}/logo.png`;
+    }
+    return "";
+  };
+
   // Create a mapping for token prices - use calculated price from balance if API data unavailable
   const getTokenPrice = (symbol: string, network: string, balance: number, balanceUSD: number, address?: string) => {
     if (!symbol) return undefined;
-    
-    // Try direct match first from API
+
     let price = priceData?.[symbol.toUpperCase()];
     if (price) {
-      // Add logo from TrustWallet assets
       price.logo = getTokenLogo(symbol, network, address);
       return price;
     }
-    
-    // Try wrapped token variations
-    if (symbol === 'WETH') price = priceData?.['ETH'];
-    if (symbol === 'WMATIC') price = priceData?.['MATIC'];
-    if (symbol === 'WBNB') price = priceData?.['BNB'];
-    if (symbol === 'WAVAX') price = priceData?.['AVAX'];
-    
+
+    if (symbol === "WETH") price = priceData?.["ETH"];
+    if (symbol === "WMATIC") price = priceData?.["MATIC"];
+    if (symbol === "WBNB") price = priceData?.["BNB"];
+    if (symbol === "WAVAX") price = priceData?.["AVAX"];
+
     if (price) {
       price.logo = getTokenLogo(symbol, network, address);
       return price;
     }
-    
-    // If still no price but we have balance data, calculate the price
+
     if (!price && balance > 0 && balanceUSD > 0) {
       const calculatedPrice = balanceUSD / balance;
       return {
@@ -72,57 +113,12 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
         symbol: symbol.toUpperCase(),
         name: symbol,
         current_price: calculatedPrice,
-        price_change_percentage_24h: 0, // Can't calculate without historical data
+        price_change_percentage_24h: 0,
         logo: getTokenLogo(symbol, network, address),
       };
     }
-    
-    return price;
-  };
 
-  // Get token logo from TrustWallet assets or fallback sources
-  const getTokenLogo = (symbol: string, network: string, address?: string): string => {
-    // Map network names to TrustWallet blockchain identifiers
-    const networkToTrustWallet: { [key: string]: string } = {
-      'ethereum': 'ethereum',
-      'polygon': 'polygon',
-      'op mainnet': 'optimism',
-      'optimism': 'optimism',
-      'bsc': 'smartchain',
-      'binance': 'smartchain',
-      'avalanche': 'avalanchec',
-      'arbitrum': 'arbitrum',
-      'base': 'base',
-      'fantom': 'fantom',
-      'mantle': 'mantle',
-      'linea': 'linea',
-      'scroll': 'scroll',
-      'zksync': 'zksync',
-    };
-    
-    const networkLower = (network || '').toLowerCase();
-    
-    // Find matching TrustWallet network
-    const trustWalletNetwork = Object.entries(networkToTrustWallet).find(([key]) => 
-      networkLower.includes(key)
-    )?.[1];
-    
-    // For native tokens or special addresses (dead addresses), use network logo or CoinGecko
-    const isNativeOrSpecial = !address || 
-      address === '0x0000000000000000000000000000000000000000' ||
-      address.toLowerCase().includes('dead');
-    
-    if (isNativeOrSpecial && trustWalletNetwork) {
-      return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/info/logo.png`;
-    }
-    
-    // For ERC-20 tokens, try TrustWallet first if network is supported
-    if (trustWalletNetwork && address) {
-      return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletNetwork}/assets/${address}/logo.png`;
-    }
-    
-    // Fallback: construct a generic placeholder (TokenLogo component will handle Moralis fallback)
-    return '';
+    return price;
   };
 
   const handleSort = (field: SortField) => {
@@ -137,9 +133,8 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
   const filteredAndSortedTokens = useMemo(() => {
     let result = [...tokens];
 
-    // Remove duplicate tokens (same symbol on same network), keep the one with highest balance
     const tokenMap = new Map<string, Token>();
-    result.forEach(token => {
+    result.forEach((token) => {
       const key = `${token.symbol}-${token.network}`;
       const existing = tokenMap.get(key);
       if (!existing || token.balanceUSD > existing.balanceUSD) {
@@ -148,26 +143,21 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
     });
     result = Array.from(tokenMap.values());
 
-    // Filter by search query
     if (searchQuery) {
       result = result.filter(
         (token) =>
           token.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          token.network.toLowerCase().includes(searchQuery.toLowerCase())
+          token.network.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
-    // Sort
     result.sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
-
       let aComp: any = aValue;
       let bComp: any = bValue;
-
       if (typeof aComp === "string") aComp = aComp.toLowerCase();
       if (typeof bComp === "string") bComp = bComp.toLowerCase();
-
       if (sortDirection === "asc") {
         return aComp > bComp ? 1 : -1;
       } else {
@@ -180,11 +170,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4" />;
-    return sortDirection === "asc" ? (
-      <ArrowUp className="ml-2 h-4 w-4" />
-    ) : (
-      <ArrowDown className="ml-2 h-4 w-4" />
-    );
+    return sortDirection === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />;
   };
 
   return (
@@ -228,11 +214,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                 </Button>
               </TableHead>
               <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="hover:bg-transparent font-medium"
-                >
+                <Button variant="ghost" size="sm" className="hover:bg-transparent font-medium">
                   Price
                 </Button>
               </TableHead>
@@ -258,7 +240,13 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
               </TableRow>
             ) : (
               filteredAndSortedTokens.map((token, index) => {
-                const tokenPrice = getTokenPrice(token.symbol, token.network, token.balance, token.balanceUSD, token.address);
+                const tokenPrice = getTokenPrice(
+                  token.symbol,
+                  token.network,
+                  token.balance,
+                  token.balanceUSD,
+                  token.address,
+                );
                 const currentPrice = tokenPrice?.current_price;
 
                 return (
@@ -278,15 +266,11 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                         )}
                         <div className="flex flex-col gap-1">
                           <p className="font-semibold text-base">{token.symbol}</p>
-                          <p className="text-xs font-semibold text-foreground/70">
-                            {token.network}
-                          </p>
+                          <p className="text-xs font-semibold text-foreground/70">{token.network}</p>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono">
-                      {formatBalance(token.balance)}
-                    </TableCell>
+                    <TableCell className="font-mono">{formatBalance(token.balance)}</TableCell>
                     <TableCell className="font-medium">
                       {currentPrice !== undefined ? (
                         formatUSD(currentPrice)
@@ -294,9 +278,7 @@ export const TokenTable = ({ tokens }: TokenTableProps) => {
                         <span className="text-muted-foreground text-sm">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="font-semibold">
-                      {formatUSD(token.balanceUSD)}
-                    </TableCell>
+                    <TableCell className="font-semibold">{formatUSD(token.balanceUSD)}</TableCell>
                   </TableRow>
                 );
               })
