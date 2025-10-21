@@ -1,3 +1,4 @@
+// Import
 import { useQuery } from "@tanstack/react-query";
 
 interface NFTMetadata {
