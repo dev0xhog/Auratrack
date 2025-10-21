@@ -6,6 +6,8 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
+import { isValidEthereumAddress } from "@/lib/validation";
+import { useToast } from "@/hooks/use-toast";
 
 export const Navbar = () => {
   const { theme, setTheme } = useTheme();
@@ -14,6 +16,7 @@ export const Navbar = () => {
   const [searchParams] = useSearchParams();
   const [searchAddress, setSearchAddress] = useState("");
   const { address: connectedAddress } = useAccount();
+  const { toast } = useToast();
 
   const currentAddress = searchParams.get("address") || "";
 
@@ -30,10 +33,28 @@ export const Navbar = () => {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchAddress.trim()) {
-      navigate(`${location.pathname}?address=${searchAddress.trim()}`);
-      setSearchAddress("");
+    const trimmedAddress = searchAddress.trim();
+    
+    if (!trimmedAddress) {
+      toast({
+        title: "Address Required",
+        description: "Please enter a wallet address",
+        variant: "destructive",
+      });
+      return;
     }
+    
+    if (!isValidEthereumAddress(trimmedAddress)) {
+      toast({
+        title: "Invalid Address",
+        description: "Please enter a valid Ethereum wallet address (e.g., 0x90c0bf8d71369d21f8addf0da33d21dcb0b1c384)",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    navigate(`${location.pathname}?address=${trimmedAddress.toLowerCase()}`);
+    setSearchAddress("");
   };
 
   const navLinks = [

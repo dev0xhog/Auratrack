@@ -1,16 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
-import { useEffect } from "react";
+import { isValidEthereumAddress } from "@/lib/validation";
+import { useToast } from "@/hooks/use-toast";
 
 const Landing = () => {
   const [address, setAddress] = useState("");
   const navigate = useNavigate();
   const { address: connectedAddress } = useAccount();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (connectedAddress) {
@@ -20,9 +22,27 @@ const Landing = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (address.trim()) {
-      navigate(`/portfolio?address=${address.trim()}`);
+    const trimmedAddress = address.trim();
+    
+    if (!trimmedAddress) {
+      toast({
+        title: "Address Required",
+        description: "Please enter a wallet address",
+        variant: "destructive",
+      });
+      return;
     }
+    
+    if (!isValidEthereumAddress(trimmedAddress)) {
+      toast({
+        title: "Invalid Address",
+        description: "Please enter a valid Ethereum wallet address (e.g., 0x90c0bf8d71369d21f8addf0da33d21dcb0b1c384)",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    navigate(`/portfolio?address=${trimmedAddress.toLowerCase()}`);
   };
 
   return (
