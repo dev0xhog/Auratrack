@@ -30,18 +30,19 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
   useEffect(() => {
     const fetchMoralisLogo = async () => {
       if (!address || !network || !imageError || fallbackSrc) return;
-      
-      const networkLower = (network || '').toLowerCase();
-      
+
+      const networkLower = (network || "").toLowerCase();
+
       // Hardcoded fallbacks for Mantle tokens (Moralis doesn't support Mantle yet)
-      if (networkLower.includes('mantle') && address) {
+      if (networkLower.includes("mantle") && address) {
         const mantleTokenLogos: { [key: string]: string } = {
-          '0x78c1b0c915c4faa5fffa6cabf0219da63d7f4cb8': 'https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png', // WMNT
-          '0x09bc4e0d864854c6afb6eb9a9cdf58ac190d0df9': 'https://assets.coingecko.com/coins/images/6319/small/usdc.png', // USDC
-          '0xdeaddeaddeaddeaddeaddeaddeaddeaddead1111': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png', // WETH (lowercase d in dead)
-          '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000': 'https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png', // MNT (native)
+          "0x78c1b0c915c4faa5fffa6cabf0219da63d7f4cb8": "https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png", // WMNT
+          "0x09bc4e0d864854c6afb6eb9a9cdf58ac190d0df9": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", // USDC
+          "0xdeaddeaddeaddeaddeaddeaddeaddeaddead1111":
+            "https://assets.coingecko.com/coins/images/279/small/ethereum.png", // WETH (lowercase d in dead)
+          "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000": "https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png", // MNT (native)
         };
-        
+
         const logo = mantleTokenLogos[address.toLowerCase()];
         if (logo) {
           console.log(`Using hardcoded logo for Mantle ${symbol}: ${logo}`);
@@ -51,36 +52,33 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
           return;
         }
       }
-      
+
       // Skip native tokens (zero address or dead addresses) for other networks
-      if (address === '0x0000000000000000000000000000000000000000' || 
-          address?.toLowerCase().includes('dead')) return;
-      
+      if (address === "0x0000000000000000000000000000000000000000" || address?.toLowerCase().includes("dead")) return;
+
       // Map network to Moralis chain ID
       const networkToMoralis: { [key: string]: string } = {
-        'ethereum': '0x1',
-        'polygon': '0x89',
-        'bsc': '0x38',
-        'binance': '0x38',
-        'avalanche': '0xa86a',
-        'arbitrum': '0xa4b1',
-        'optimism': '0xa',
-        'op mainnet': '0xa',
-        'base': '0x2105',
-        'fantom': '0xfa',
+        ethereum: "0x1",
+        polygon: "0x89",
+        bsc: "0x38",
+        binance: "0x38",
+        avalanche: "0xa86a",
+        arbitrum: "0xa4b1",
+        optimism: "0xa",
+        "op mainnet": "0xa",
+        base: "0x2105",
+        fantom: "0xfa",
       };
-      
-      const chainId = Object.entries(networkToMoralis).find(([key]) => 
-        networkLower.includes(key)
-      )?.[1];
-      
+
+      const chainId = Object.entries(networkToMoralis).find(([key]) => networkLower.includes(key))?.[1];
+
       if (!chainId) {
         console.log(`No Moralis chain ID found for network: ${network}`);
         return;
       }
-      
+
       try {
-        const apiKey = import.meta.env.VITE_MORALIS_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjAxODNkNzAwLWU5MDgtNDY5Yi1hODdjLWVlYzcwYjA5ZTk5NiIsIm9yZ0lkIjoiNDc2MDAyIiwidXNlcklkIjoiNDg5NzAxIiwidHlwZUlkIjoiYmMyZDExYjEtY2E1ZS00ZmYyLTkzMDQtZmIwZWE1ZmFiNDYzIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjA1MDI5MDIsImV4cCI6NDkxNjI2MjkwMn0.Y5JRrStTce-FY7Sg0EHSIpa2O-ZutRHoy8DaK_ZWj1M";
+        const apiKey = getApiKey("MORALIS");
         console.log(`Fetching Moralis logo for ${symbol} (${address}) on chain ${chainId}`);
         const response = await fetch(
           `https://deep-index.moralis.io/api/v2.2/erc20/metadata?chain=${chainId}&addresses=${address}`,
@@ -88,9 +86,9 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
             headers: {
               "X-API-Key": apiKey,
             },
-          }
+          },
         );
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log(`Moralis response for ${symbol}:`, data);
@@ -109,7 +107,7 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
         console.error(`Failed to fetch Moralis logo for ${symbol}:`, error);
       }
     };
-    
+
     fetchMoralisLogo();
   }, [address, network, imageError, fallbackSrc, symbol]);
 
@@ -128,9 +126,7 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
 
   return (
     <div className={`${sizeClasses[size]} relative flex items-center justify-center`}>
-      {isLoading && (
-        <div className="absolute inset-0 rounded-full bg-muted animate-pulse" />
-      )}
+      {isLoading && <div className="absolute inset-0 rounded-full bg-muted animate-pulse" />}
       <img
         src={logoSrc}
         alt={`${symbol} logo`}
