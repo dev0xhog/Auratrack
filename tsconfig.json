@@ -1,4 +1,5 @@
 {
+  // No specific files listed here — uses references below instead
   "files": [],
   "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }],
   "compilerOptions": {
