@@ -1,3 +1,4 @@
+// Import States
 import { useState, useEffect } from "react";
 import { Coins } from "lucide-react";
 
