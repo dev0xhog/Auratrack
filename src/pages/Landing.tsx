@@ -36,7 +36,8 @@ const Landing = () => {
     if (!isValidEthereumAddress(trimmedAddress)) {
       toast({
         title: "Invalid Address",
-        description: "Please enter a valid Ethereum wallet address (e.g., 0x90c0bf8d71369d21f8addf0da33d21dcb0b1c384)",
+        description: "Please enter a valid Ethereum wallet address (e.g., 0x0000000000000000000000000000000000000000
+)",
         variant: "destructive",
       });
       return;
