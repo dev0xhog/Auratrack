@@ -95,9 +95,9 @@ This project has been optimized for the following judging criteria:
   ## Other APIs used (secondary priority)
   - Moralis (transaction, token metadata, NFTs fallback): used across multiple hooks and components for transactions, token logos and NFT metadata. Files: `src/hooks/*moralis*.ts`, `src/components/portfolio/TokenLogo.tsx`, `src/components/transactions/TokenIcon.tsx`, `src/hooks/useMoralisNFTsByChain.ts`.
     - Moralis endpoints observed in code (headers expect X-API-Key): deep-index.moralis.io API paths for transactions, erc20 metadata, NFTs.
-    - API Key Configuration: Set in `src/config/api.ts` as `MORALIS` (**Required**)
+    - API Key Configuration: Set as `VITE_MORALIS_API_KEY` in `.env.local` (**Required**)
   - Alchemy (NFT fetching when supported chains are present): `src/hooks/useMoralisNFTsByChain.ts` uses Alchemy NFT APIs as a source and converts Alchemy responses to a Moralis-like shape.
-    - API Key Configuration: Set in `src/config/api.ts` as `ALCHEMY` (**Required** for NFT features)
+    - API Key Configuration: Set as `VITE_ALCHEMY_API_KEY` in `.env.local` (**Required** for NFT features)
   - CoinGecko (current token prices for portfolio): used in `src/pages/Portfolio.tsx` to fetch USD prices and 24hr change.
   - CoinCap (bulk token price list): used in `src/hooks/useTokenPrices.ts` as a fallback/no-key source.
   - Etherscan (transaction list fallback): used in `src/hooks/useTransactions.ts` when needed. Environment variable: `VITE_ETHERSCAN_API_KEY` (optional).
@@ -123,22 +123,20 @@ This project has been optimized for the following judging criteria:
      ```
   
   2. **🔐 Configure API Keys (IMPORTANT)**:
-     Open `src/config/api.ts` and replace the placeholder values with your actual API keys:
-     - `MORALIS` - **Required** - Get from [moralis.io](https://moralis.io)
-     - `ALCHEMY` - **Required** - Get from [alchemy.com](https://www.alchemy.com)
+     Copy the `.env.local` file and add your actual API keys:
+     - `VITE_MORALIS_API_KEY` - **Required** - Get from [moralis.io](https://moralis.io)
+     - `VITE_ALCHEMY_API_KEY` - **Required** - Get from [alchemy.com](https://www.alchemy.com)
      
-     ```typescript
-     // src/config/api.ts
-     export const API_KEYS = {
-       MORALIS: 'your_moralis_api_key_here',
-       ALCHEMY: 'your_alchemy_api_key_here',
-     } as const;
+     ```env
+     # .env.local
+     VITE_MORALIS_API_KEY=your_moralis_api_key_here
+     VITE_ALCHEMY_API_KEY=your_alchemy_api_key_here
      ```
      
      **⚠️ Security Note**: 
-     - For this hackathon demo, API keys are stored in the config file
-     - For production, consider using environment variables or server-side proxies
-     - Never commit real API keys to public repositories
+     - API keys are now stored in environment variables (`.env.local` is git-ignored)
+     - **NEVER** commit `.env.local` to version control
+     - For Vercel deployment, add these as environment variables in your project settings
   
   3. Start dev server:
      ```bash
@@ -182,17 +180,23 @@ Auratrack implements multiple security layers to protect users and their data:
 8. **Secure Communication**: All API calls use HTTPS only
 
 ### API Key Security Best Practices
-- ✅ Centralized configuration in `src/config/api.ts`
+- ✅ Stored in environment variables (not in code)
+- ✅ `.env.local` is git-ignored by default
 - ✅ Clear validation and error messages when keys are missing
-- ✅ Easy to switch to environment variables for production
 - ✅ No keys in git history or public repositories
 
-**🔒 For Production Deployment**: 
-- Use environment variables in your hosting platform (Vercel, Netlify, etc.)
-- Implement server-side proxy for sensitive API calls
+**🔒 For Vercel Deployment**: 
+1. Go to your Vercel project: **Settings → Environment Variables**
+2. Add the following variables for all environments (Production, Preview, Development):
+   - `VITE_MORALIS_API_KEY` → your Moralis API key
+   - `VITE_ALCHEMY_API_KEY` → your Alchemy API key
+3. Redeploy your application
+
+**Additional Security Measures**:
 - Rotate API keys regularly
 - Monitor API usage for anomalies
 - Consider using API key restrictions (domain/IP allowlists)
+- Use Vercel's environment variable encryption
 
 ## 📊 Performance Benchmarks
 
