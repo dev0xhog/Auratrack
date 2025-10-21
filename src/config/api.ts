@@ -2,10 +2,10 @@
  * API Configuration
  *
  * This file reads API keys from environment variables for security.
- * 
+ *
  * For local development:
  * - Copy .env.local and add your actual API keys
- * 
+ *
  * For Vercel deployment:
  * - Add environment variables in Vercel dashboard:
  *   Project Settings → Environment Variables
@@ -33,9 +33,9 @@ export const getApiKey = (service: keyof typeof API_KEYS): string => {
   if (!key || key.trim() === "") {
     throw new Error(
       `${service} API key not configured. ` +
-      `Please add VITE_${service}_API_KEY to your environment variables. ` +
-      `For local dev: add to .env.local file. ` +
-      `For Vercel: add in Project Settings → Environment Variables.`
+        `Please add VITE_${service}_API_KEY to your environment variables. ` +
+        `For local dev: add to .env.local file. ` +
+        `For Vercel: add in Project Settings → Environment Variables.`,
     );
   }
 
