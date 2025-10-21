@@ -27,11 +27,11 @@ SOFTWARE.
 This project integrates with the following external services:
 
 -   Aura Network APIs - Portfolio balances and AI strategies
-  - API: https://aura.adex.network/
+  - API: https://adex.network/
   - License: Proprietary (used with permission for hackathon)
 
 -   Moralis API - Blockchain data (transactions, NFTs, token metadata)
-  - Website: https://moralis.io/
+  - Website: https://moralis.com/
   - License: Proprietary commercial API
 
 -   Alchemy API - NFT data aggregation
