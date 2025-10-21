@@ -26,23 +26,23 @@ SOFTWARE.
 
 This project integrates with the following external services:
 
-- **Aura Network APIs** - Portfolio balances and AI strategies
+-   Aura Network APIs - Portfolio balances and AI strategies
   - API: https://aura.adex.network/
   - License: Proprietary (used with permission for hackathon)
 
-- **Moralis API** - Blockchain data (transactions, NFTs, token metadata)
+-   Moralis API - Blockchain data (transactions, NFTs, token metadata)
   - Website: https://moralis.io/
   - License: Proprietary commercial API
 
-- **Alchemy API** - NFT data aggregation
+-   Alchemy API - NFT data aggregation
   - Website: https://www.alchemy.com/
   - License: Proprietary commercial API
 
-- **CoinGecko API** - Cryptocurrency price data
+-   CoinGecko API - Cryptocurrency price data
   - Website: https://www.coingecko.com/
   - License: Free tier usage (rate limited)
 
-- **Etherscan API** - Ethereum transaction fallback
+-   Etherscan API - Ethereum transaction fallback
   - Website: https://etherscan.io/
   - License: Free tier usage (rate limited)
 
