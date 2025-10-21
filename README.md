@@ -1,6 +1,6 @@
 # Auratrack - Multi-Chain Portfolio Intelligence Platform
 
-** A production-ready EVM wallet portfolio tracker with AI-powered strategy recommendations
+A production-ready EVM wallet portfolio tracker with AI-powered strategy recommendations
 
 Auratrack is a comprehensive multi-chain portfolio analytics platform that aggregates blockchain data across 18+ EVM networks and provides intelligent, AI-driven investment strategies using Aura's Portfolio APIs. Built with performance, security, and user experience as top priorities.
 
