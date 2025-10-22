@@ -107,7 +107,10 @@ const NFTs = () => {
         </div>
       ) : error ? (
         <Card className="p-12 text-center border-destructive">
-          <p className="text-destructive">Failed to load NFTs. Please try again.</p>
+          <p className="text-destructive mb-2">Failed to load NFTs</p>
+          <p className="text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : "Please check your API configuration and try again."}
+          </p>
         </Card>
       ) : displayNFTs.length === 0 && networkData.length === 0 ? (
         <Card className="p-12 text-center">
