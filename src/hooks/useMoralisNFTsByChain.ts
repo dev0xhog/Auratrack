@@ -1,5 +1,5 @@
-// Import
 import { useQuery } from "@tanstack/react-query";
+import { getApiKey } from "@/config/api";
 
 interface NFTMetadata {
   name?: string;

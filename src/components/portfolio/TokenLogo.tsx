@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Coins } from "lucide-react";
+import { getApiKey } from "@/config/api";
 
 interface TokenLogoProps {
   src?: string;
@@ -78,7 +79,7 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
       }
 
       try {
-        const apiKey = import.meta.env.VITE_MORALIS_API_KEY;
+        const apiKey = getApiKey("MORALIS");
         console.log(`Fetching Moralis logo for ${symbol} (${address}) on chain ${chainId}`);
         const response = await fetch(
           `https://deep-index.moralis.io/api/v2.2/erc20/metadata?chain=${chainId}&addresses=${address}`,

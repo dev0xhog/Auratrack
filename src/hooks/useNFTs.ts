@@ -31,7 +31,7 @@ export const useNFTs = (address: string | undefined) => {
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
 
-      const apiKey = import.meta.env.VITE_ALCHEMY_API_KEY;
+      const apiKey = getApiKey("ALCHEMY");
       const response = await fetch(
         `https://eth-mainnet.g.alchemy.com/nft/v3/${apiKey}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=20`,
       );
