@@ -1,4 +1,4 @@
-# Auratrack - Multi-Chain Portfolio Intelligence Platform
+# Auratrack - Multi-Chain Portfolio Tracker + AURA Intelligence 
 
 A production-ready EVM wallet portfolio tracker with AI-powered strategy recommendations
 
