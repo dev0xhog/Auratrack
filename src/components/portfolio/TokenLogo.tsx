@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Coins } from "lucide-react";
-import { getApiKey } from "@/config/api";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TokenLogoProps {
   src?: string;
@@ -27,21 +27,21 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
     lg: "h-5 w-5",
   };
 
-  // Try to fetch logo from Moralis when TrustWallet fails
+  // Try to fetch logo from Trust Wallet CDN first, then Moralis proxy as fallback
   useEffect(() => {
-    const fetchMoralisLogo = async () => {
+    const fetchTokenLogo = async () => {
       if (!address || !network || !imageError || fallbackSrc) return;
 
       const networkLower = (network || "").toLowerCase();
 
-      // Hardcoded fallbacks for Mantle tokens (Moralis doesn't support Mantle yet)
+      // Hardcoded fallbacks for Mantle tokens (not supported by Trust Wallet or Moralis)
       if (networkLower.includes("mantle") && address) {
         const mantleTokenLogos: { [key: string]: string } = {
           "0x78c1b0c915c4faa5fffa6cabf0219da63d7f4cb8": "https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png", // WMNT
           "0x09bc4e0d864854c6afb6eb9a9cdf58ac190d0df9": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", // USDC
           "0xdeaddeaddeaddeaddeaddeaddeaddeaddead1111":
-            "https://assets.coingecko.com/coins/images/279/small/ethereum.png", // WETH (lowercase d in dead)
-          "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000": "https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png", // MNT (native)
+            "https://assets.coingecko.com/coins/images/279/small/ethereum.png", // WETH
+          "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000": "https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png", // MNT
         };
 
         const logo = mantleTokenLogos[address.toLowerCase()];
@@ -54,62 +54,103 @@ export const TokenLogo = ({ src, symbol, size = "md", address, network }: TokenL
         }
       }
 
-      // Skip native tokens (zero address or dead addresses) for other networks
+      // Skip native tokens (zero address or dead addresses)
       if (address === "0x0000000000000000000000000000000000000000" || address?.toLowerCase().includes("dead")) return;
 
-      // Map network to Moralis chain ID
-      const networkToMoralis: { [key: string]: string } = {
-        ethereum: "0x1",
-        polygon: "0x89",
-        bsc: "0x38",
-        binance: "0x38",
-        avalanche: "0xa86a",
-        arbitrum: "0xa4b1",
-        optimism: "0xa",
-        "op mainnet": "0xa",
-        base: "0x2105",
-        fantom: "0xfa",
+      // Map network to Trust Wallet blockchain names
+      const networkToTrustWallet: { [key: string]: string } = {
+        ethereum: "ethereum",
+        polygon: "polygon",
+        bsc: "smartchain",
+        binance: "smartchain",
+        avalanche: "avalanchec",
+        arbitrum: "arbitrum",
+        optimism: "optimism",
+        base: "base",
+        fantom: "fantom",
       };
 
-      const chainId = Object.entries(networkToMoralis).find(([key]) => networkLower.includes(key))?.[1];
+      const trustWalletChain = Object.entries(networkToTrustWallet).find(([key]) => networkLower.includes(key))?.[1];
 
-      if (!chainId) {
-        console.log(`No Moralis chain ID found for network: ${network}`);
-        return;
+      // Try Trust Wallet CDN first (no API key needed)
+      if (trustWalletChain && address) {
+        const trustWalletUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletChain}/assets/${address}/logo.png`;
+        console.log(`Trying Trust Wallet CDN for ${symbol}: ${trustWalletUrl}`);
+
+        try {
+          const img = new Image();
+          img.onload = () => {
+            console.log(`Found logo on Trust Wallet CDN for ${symbol}`);
+            setFallbackSrc(trustWalletUrl);
+            setImageError(false);
+            setIsLoading(true);
+          };
+          img.onerror = async () => {
+            console.log(`Trust Wallet CDN failed for ${symbol}, trying Moralis proxy`);
+            await tryMoralisProxy();
+          };
+          img.src = trustWalletUrl;
+          return;
+        } catch (error) {
+          console.log(`Trust Wallet CDN error for ${symbol}:`, error);
+        }
       }
 
-      try {
-        const apiKey = getApiKey("MORALIS");
-        console.log(`Fetching Moralis logo for ${symbol} (${address}) on chain ${chainId}`);
-        const response = await fetch(
-          `https://deep-index.moralis.io/api/v2.2/erc20/metadata?chain=${chainId}&addresses=${address}`,
-          {
-            headers: {
-              "X-API-Key": apiKey,
-            },
-          },
-        );
+      await tryMoralisProxy();
 
-        if (response.ok) {
-          const data = await response.json();
+      async function tryMoralisProxy() {
+        // Map network to Moralis chain names for proxy
+        const networkToMoralisChain: { [key: string]: string } = {
+          ethereum: "eth",
+          polygon: "polygon",
+          bsc: "bsc",
+          binance: "bsc",
+          avalanche: "avalanche",
+          arbitrum: "arbitrum",
+          optimism: "optimism",
+          base: "base",
+          fantom: "fantom",
+        };
+
+        const moralisChain = Object.entries(networkToMoralisChain).find(([key]) => networkLower.includes(key))?.[1];
+
+        if (!moralisChain) {
+          console.log(`No Moralis chain found for network: ${network}`);
+          return;
+        }
+
+        try {
+          console.log(`Fetching from Moralis proxy for ${symbol} (${address}) on chain ${moralisChain}`);
+          
+          const { data, error } = await supabase.functions.invoke('moralis-proxy', {
+            body: { 
+              endpoint: `/erc20/metadata`,
+              chain: moralisChain,
+              addresses: address
+            }
+          });
+
+          if (error) {
+            console.error(`Moralis proxy error for ${symbol}:`, error);
+            return;
+          }
+
           console.log(`Moralis response for ${symbol}:`, data);
           if (data && Array.isArray(data) && data.length > 0 && data[0]?.logo) {
             console.log(`Found Moralis logo for ${symbol}: ${data[0].logo}`);
             setFallbackSrc(data[0].logo);
             setImageError(false);
-            setIsLoading(true); // Reset loading state to load new image
+            setIsLoading(true);
           } else {
             console.log(`No logo in Moralis response for ${symbol}`);
           }
-        } else {
-          console.error(`Moralis API error for ${symbol}: ${response.status}`);
+        } catch (error) {
+          console.error(`Failed to fetch Moralis logo for ${symbol}:`, error);
         }
-      } catch (error) {
-        console.error(`Failed to fetch Moralis logo for ${symbol}:`, error);
       }
     };
 
-    fetchMoralisLogo();
+    fetchTokenLogo();
   }, [address, network, imageError, fallbackSrc, symbol]);
 
   const logoSrc = fallbackSrc || src;

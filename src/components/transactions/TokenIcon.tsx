@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getApiKey } from "@/config/api";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TokenIconProps {
   logoUrl?: string;
@@ -49,6 +49,9 @@ export const TokenIcon = ({ logoUrl, symbol, className = "h-8 w-8", address, net
         return;
       }
 
+      // Checksummed address for Trust Wallet (they use checksummed addresses)
+      const checksumAddress = address; // Trust Wallet accepts both formats
+
       // Map network/chain codes to TrustWallet blockchain names
       const networkToTrustWallet: { [key: string]: string } = {
         eth: "ethereum",
@@ -66,75 +69,87 @@ export const TokenIcon = ({ logoUrl, symbol, className = "h-8 w-8", address, net
         gnosis: "xdai",
         moonbeam: "moonbeam",
         moonriver: "moonriver",
+        flow: "flow",
+        ronin: "ronin",
       };
 
       const trustWalletChain = networkToTrustWallet[networkLower];
 
-      // Try TrustWallet CDN first
-      if (trustWalletChain && address) {
-        const trustWalletUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletChain}/assets/${address}/logo.png`;
+      // Try TrustWallet CDN first (works without API key)
+      if (trustWalletChain && checksumAddress) {
+        const trustWalletUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${trustWalletChain}/assets/${checksumAddress}/logo.png`;
         console.log(`TokenIcon: Trying TrustWallet CDN: ${trustWalletUrl}`);
 
         try {
-          const response = await fetch(trustWalletUrl, { method: "HEAD" });
-          if (response.ok) {
+          // Try to load the image directly instead of HEAD request
+          const img = new Image();
+          img.onload = () => {
             console.log(`TokenIcon: Found logo on TrustWallet CDN for ${symbol}`);
             setFallbackSrc(trustWalletUrl);
             setImageError(false);
             setIsLoading(true);
-            return;
-          }
+          };
+          img.onerror = async () => {
+            console.log(`TokenIcon: TrustWallet CDN failed for ${symbol}, trying Moralis proxy`);
+            await tryMoralisProxy();
+          };
+          img.src = trustWalletUrl;
+          return;
         } catch (error) {
-          console.log(`TokenIcon: TrustWallet CDN failed for ${symbol}, trying Moralis`);
+          console.log(`TokenIcon: TrustWallet CDN error for ${symbol}:`, error);
         }
       }
 
-      // Map network/chain codes to Moralis chain IDs as fallback
-      const networkToMoralis: { [key: string]: string } = {
-        eth: "0x1",
-        ethereum: "0x1",
-        polygon: "0x89",
-        bsc: "0x38",
-        binance: "0x38",
-        avalanche: "0xa86a",
-        arbitrum: "0xa4b1",
-        optimism: "0xa",
-        base: "0x2105",
-        fantom: "0xfa",
-        linea: "0xe708",
-        cronos: "0x19",
-        gnosis: "0x64",
-        chiliz: "0x15b38",
-        moonbeam: "0x504",
-        moonriver: "0x505",
-        flow: "0x2eb",
-        ronin: "0x7e4",
-        lisk: "0x46f",
-        pulsechain: "0x171",
-      };
+      await tryMoralisProxy();
 
-      const chainId = networkToMoralis[networkLower];
+      async function tryMoralisProxy() {
+        // Map network/chain codes to Moralis chain names for proxy
+        const networkToMoralisChain: { [key: string]: string } = {
+          eth: "eth",
+          ethereum: "eth",
+          polygon: "polygon",
+          bsc: "bsc",
+          binance: "bsc",
+          avalanche: "avalanche",
+          arbitrum: "arbitrum",
+          optimism: "optimism",
+          base: "base",
+          fantom: "fantom",
+          linea: "linea",
+          cronos: "cronos",
+          gnosis: "gnosis",
+          chiliz: "chiliz",
+          moonbeam: "moonbeam",
+          moonriver: "moonriver",
+          flow: "flow",
+          ronin: "ronin",
+          lisk: "lisk",
+          pulsechain: "pulsechain",
+        };
 
-      if (!chainId) {
-        console.error(`TokenIcon: No Moralis chain ID found for network: ${network}`);
-        return;
-      }
+        const moralisChain = networkToMoralisChain[networkLower];
 
-      try {
-        const apiKey = getApiKey("MORALIS");
-        console.log(`TokenIcon: Fetching from Moralis API for ${symbol} on chain ${chainId}`);
+        if (!moralisChain) {
+          console.error(`TokenIcon: No Moralis chain found for network: ${network}`);
+          return;
+        }
 
-        const response = await fetch(
-          `https://deep-index.moralis.io/api/v2.2/erc20/metadata?chain=${chainId}&addresses=${address}`,
-          {
-            headers: {
-              "X-API-Key": apiKey,
-            },
-          },
-        );
+        try {
+          console.log(`TokenIcon: Fetching from Moralis proxy for ${symbol} on chain ${moralisChain}`);
 
-        if (response.ok) {
-          const data = await response.json();
+          const { data, error } = await supabase.functions.invoke('moralis-proxy', {
+            body: { 
+              endpoint: `/erc20/metadata`,
+              chain: moralisChain,
+              addresses: checksumAddress
+            }
+          });
+
+          if (error) {
+            console.error(`TokenIcon: Moralis proxy error for ${symbol}:`, error);
+            return;
+          }
+
           console.log(`TokenIcon: Moralis response for ${symbol}:`, data);
 
           if (data && Array.isArray(data) && data.length > 0 && data[0]?.logo) {
@@ -145,11 +160,9 @@ export const TokenIcon = ({ logoUrl, symbol, className = "h-8 w-8", address, net
           } else {
             console.log(`TokenIcon: No logo in Moralis response for ${symbol}`);
           }
-        } else {
-          console.error(`TokenIcon: Moralis API error for ${symbol}: ${response.status}`);
+        } catch (error) {
+          console.error(`TokenIcon: Failed to fetch Moralis logo for ${symbol}:`, error);
         }
-      } catch (error) {
-        console.error(`TokenIcon: Failed to fetch Moralis logo for ${symbol}:`, error);
       }
     };
 

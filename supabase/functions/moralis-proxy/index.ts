@@ -17,13 +17,13 @@ serve(async (req) => {
       throw new Error('MORALIS_API_KEY not configured');
     }
 
-    const { endpoint, chain } = await req.json();
+    const { endpoint, chain, addresses } = await req.json();
     
     if (!endpoint) {
       throw new Error('Endpoint is required');
     }
 
-    console.log(`Fetching from Moralis: ${endpoint}, chain: ${chain || 'eth'}`);
+    console.log(`Fetching from Moralis: ${endpoint}, chain: ${chain || 'eth'}, addresses: ${addresses || 'none'}`);
     
     // Build URL with query params
     const baseUrl = `https://deep-index.moralis.io/api/v2.2${endpoint}`;
@@ -33,13 +33,19 @@ serve(async (req) => {
       url.searchParams.set('chain', chain);
     }
     
+    // Add addresses param for metadata endpoint
+    if (addresses) {
+      url.searchParams.set('addresses', addresses);
+    }
+    
     // Add default limit and format for certain endpoints
     if (endpoint.includes('/nft')) {
       url.searchParams.set('format', 'decimal');
-      url.searchParams.set('limit', '100');
+      if (!addresses) url.searchParams.set('limit', '100');
     } else if (endpoint.includes('/transfers')) {
       url.searchParams.set('limit', '50');
-    } else {
+    } else if (!endpoint.includes('/metadata')) {
+      // Don't add limit for metadata endpoint
       url.searchParams.set('limit', '50');
     }
     
