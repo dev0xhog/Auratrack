@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { validateAndSanitizeAddress, isValidChain } from "@/lib/validation";
-import { fetchWithTimeout, batchFetch } from "@/lib/apiClient";
-import { getApiKey } from "@/config/api";
+import { batchFetch } from "@/lib/apiClient";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MoralisTransaction {
   hash: string;
@@ -53,8 +53,6 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
         throw new Error("Invalid Ethereum address format");
       }
       
-      const apiKey = getApiKey('MORALIS');
-      
       // Performance: Fetch chains in parallel batches to reduce load time
       const fetchChainTransactions = async (chain: string) => {
         // Security: Validate chain parameter
@@ -64,22 +62,16 @@ export const useMoralisTransactionsByChain = (address: string | undefined) => {
         }
 
         try {
-          const response = await fetchWithTimeout(
-            `https://deep-index.moralis.io/api/v2.2/${validAddress}?chain=${chain}&limit=50`,
-            {
-              headers: { "X-API-Key": apiKey },
-              timeout: 15000,
-              retries: 1,
-            }
-          );
+          const { data, error } = await supabase.functions.invoke('moralis-proxy', {
+            body: { endpoint: `/${validAddress}`, chain }
+          });
           
-          if (!response.ok) {
-            console.warn(`Failed to fetch transactions for ${chain}: ${response.status}`);
+          if (error) {
+            console.warn(`Failed to fetch transactions for ${chain}:`, error);
             return { chain, transactions: [] };
           }
           
-          const data: MoralisTransactionsResponse = await response.json();
-          const transactionsWithChain = data.result.map(tx => ({
+          const transactionsWithChain = data.result.map((tx: any) => ({
             ...tx,
             chain,
           }));

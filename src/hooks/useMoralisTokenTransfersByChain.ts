@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { validateAndSanitizeAddress, isValidChain } from "@/lib/validation";
-import { fetchWithTimeout, batchFetch } from "@/lib/apiClient";
-import { getApiKey } from "@/config/api";
+import { batchFetch } from "@/lib/apiClient";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface MoralisTokenTransfer {
   transaction_hash: string;
@@ -57,8 +57,6 @@ export const useMoralisTokenTransfersByChain = (address: string | undefined) => 
         throw new Error("Invalid Ethereum address format");
       }
       
-      const apiKey = getApiKey('MORALIS');
-      
       // Performance: Fetch chains in parallel batches
       const fetchChainTransfers = async (chain: string) => {
         // Security: Validate chain parameter
@@ -68,24 +66,18 @@ export const useMoralisTokenTransfersByChain = (address: string | undefined) => 
         }
 
         try {
-          const response = await fetchWithTimeout(
-            `https://deep-index.moralis.io/api/v2.2/${validAddress}/erc20/transfers?chain=${chain}&limit=50`,
-            {
-              headers: { "X-API-Key": apiKey },
-              timeout: 15000,
-              retries: 1,
-            }
-          );
+          const { data, error } = await supabase.functions.invoke('moralis-proxy', {
+            body: { endpoint: `/${validAddress}/erc20/transfers`, chain }
+          });
           
-          if (!response.ok) {
-            console.warn(`Failed to fetch token transfers for ${chain}: ${response.status}`);
+          if (error) {
+            console.warn(`Failed to fetch token transfers for ${chain}:`, error);
             return { chain, transfers: [] };
           }
           
-          const data: MoralisTokenTransfersResponse = await response.json();
           return { 
             chain, 
-            transfers: data.result.map(tx => ({ ...tx, chain })) 
+            transfers: data.result.map((tx: any) => ({ ...tx, chain })) 
           };
         } catch (error) {
           console.warn(`Error fetching token transfers for ${chain}:`, error);

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getApiKey } from "@/config/api";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NFT {
   contract: {
@@ -31,16 +31,13 @@ export const useNFTs = (address: string | undefined) => {
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
 
-      const apiKey = getApiKey("ALCHEMY");
-      const response = await fetch(
-        `https://eth-mainnet.g.alchemy.com/nft/v3/${apiKey}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=20`,
-      );
+      const { data, error } = await supabase.functions.invoke('alchemy-proxy', {
+        body: { address, chain: 'eth' }
+      });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch NFTs");
-      }
+      if (error) throw error;
+      if (!data) throw new Error("Failed to fetch NFTs");
 
-      const data: NFTsResponse = await response.json();
       return data.ownedNfts;
     },
     enabled: !!address,

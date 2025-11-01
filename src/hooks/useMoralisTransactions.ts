@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getApiKey } from "@/config/api";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MoralisTransaction {
   hash: string;
@@ -24,21 +24,13 @@ export const useMoralisTransactions = (address: string | undefined, chain: strin
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
       
-      const apiKey = getApiKey('MORALIS');
-      const response = await fetch(
-        `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain}&limit=20`,
-        {
-          headers: {
-            "X-API-Key": apiKey,
-          },
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('moralis-proxy', {
+        body: { endpoint: `/${address}`, chain }
+      });
       
-      if (!response.ok) {
-        throw new Error("Failed to fetch transactions from Moralis");
-      }
+      if (error) throw error;
+      if (!data) throw new Error("Failed to fetch transactions from Moralis");
       
-      const data: MoralisTransactionsResponse = await response.json();
       return data.result;
     },
     enabled: !!address,

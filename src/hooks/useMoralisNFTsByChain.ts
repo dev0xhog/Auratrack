@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getApiKey } from "@/config/api";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NFTMetadata {
   name?: string;
@@ -80,21 +80,13 @@ interface MoralisNFT {
   };
 }
 
-// Alchemy NFT API supported chains
+// Alchemy NFT API supported chains - mapped to moralis format
 const SUPPORTED_CHAINS = [
-  { id: "eth-mainnet", name: "Ethereum" },
-  { id: "polygon-mainnet", name: "Polygon" },
-  { id: "opt-mainnet", name: "Optimism" },
-  { id: "arb-mainnet", name: "Arbitrum" },
-  { id: "base-mainnet", name: "Base" },
-  { id: "zksync-mainnet", name: "zkSync Era" },
-  { id: "avax-mainnet", name: "Avalanche" },
-  { id: "hyperliquid-mainnet", name: "HyperEVM" },
-  { id: "zora-mainnet", name: "Zora" },
-  { id: "linea-mainnet", name: "Linea" },
-  { id: "gnosis-mainnet", name: "Gnosis" },
-  { id: "ink-mainnet", name: "Ink" },
-  { id: "arbnova-mainnet", name: "Arbitrum Nova" },
+  { id: "eth", name: "Ethereum" },
+  { id: "polygon", name: "Polygon" },
+  { id: "optimism", name: "Optimism" },
+  { id: "arbitrum", name: "Arbitrum" },
+  { id: "base", name: "Base" },
 ];
 
 // Helper to convert Alchemy NFT to our format
@@ -130,29 +122,18 @@ const convertAlchemyToMoralisFormat = (nft: AlchemyNFT): MoralisNFT => {
 const fetchNFTsForChain = async (
   chain: { id: string; name: string },
   address: string,
-  apiKey: string,
 ): Promise<MoralisNFT[]> => {
   try {
-    const url = new URL(`https://${chain.id}.g.alchemy.com/nft/v3/${apiKey}/getNFTsForOwner`);
-    url.searchParams.set("owner", address);
-    url.searchParams.set("withMetadata", "true");
-    url.searchParams.set("pageSize", "100");
-    url.searchParams.set("excludeFilters[]", "SPAM");
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        Accept: "application/json",
-      },
+    const { data, error } = await supabase.functions.invoke('alchemy-proxy', {
+      body: { address, chain: chain.id }
     });
 
-    if (!response.ok) {
-      console.warn(`Failed to fetch NFTs from ${chain.name}: ${response.status}`);
+    if (error) {
+      console.warn(`Failed to fetch NFTs from ${chain.name}:`, error);
       return [];
     }
 
-    const data = await response.json();
-
-    if (data.ownedNfts && data.ownedNfts.length > 0) {
+    if (data && data.ownedNfts && data.ownedNfts.length > 0) {
       return data.ownedNfts
         .map((nft: AlchemyNFT) => convertAlchemyToMoralisFormat(nft))
         .filter((nft: MoralisNFT) => !nft.possible_spam);
@@ -171,12 +152,11 @@ export const useMoralisNFTsByChain = (address: string | undefined) => {
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
 
-      const apiKey = getApiKey("ALCHEMY");
       const results: { [chainName: string]: MoralisNFT[] } = {};
 
       // Fetch NFTs from all supported chains in parallel
       const chainResults = await Promise.all(
-        SUPPORTED_CHAINS.map((chain) => fetchNFTsForChain(chain, address, apiKey)),
+        SUPPORTED_CHAINS.map((chain) => fetchNFTsForChain(chain, address)),
       );
 
       // Map results to chain names

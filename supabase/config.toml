@@ -1,1 +1,7 @@
 project_id = "tispzpzirxyjxjioifkn"
+
+[functions.moralis-proxy]
+verify_jwt = false
+
+[functions.alchemy-proxy]
+verify_jwt = false

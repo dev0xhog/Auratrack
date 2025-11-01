@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getApiKey } from "@/config/api";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NFTMetadata {
   name?: string;
@@ -31,21 +31,13 @@ export const useMoralisNFTs = (address: string | undefined, chain: string = "eth
     queryFn: async () => {
       if (!address) throw new Error("Address is required");
       
-      const apiKey = getApiKey('MORALIS');
-      const response = await fetch(
-        `https://deep-index.moralis.io/api/v2.2/${address}/nft?chain=${chain}&format=decimal`,
-        {
-          headers: {
-            "X-API-Key": apiKey,
-          },
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('moralis-proxy', {
+        body: { endpoint: `/${address}/nft`, chain }
+      });
       
-      if (!response.ok) {
-        throw new Error("Failed to fetch NFTs from Moralis");
-      }
+      if (error) throw error;
+      if (!data) throw new Error("Failed to fetch NFTs from Moralis");
       
-      const data: MoralisNFTsResponse = await response.json();
       return data.result;
     },
     enabled: !!address,
